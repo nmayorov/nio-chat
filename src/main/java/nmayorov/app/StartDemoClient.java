@@ -6,7 +6,7 @@ import nmayorov.client.ConsoleInput;
 
 import java.net.InetSocketAddress;
 
-public class StartClient {
+public class StartDemoClient {
     private static final int PORT = 5000;
 
     static public void main(String[] args) throws Exception {
