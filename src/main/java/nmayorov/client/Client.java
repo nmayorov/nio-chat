@@ -18,7 +18,7 @@ public class Client implements Runnable {
     private Connection connection;
     private Selector selector;
 
-    private volatile boolean acceptInput = false;
+    private volatile boolean acceptInput;
     private Thread inputThread = new Thread(new InputThread());
 
     public synchronized void setName(String name) {
@@ -39,9 +39,20 @@ public class Client implements Runnable {
     }
 
     public void startToAcceptInput() {
-        if (!acceptInput) {
-            acceptInput = true;
-            inputThread.start();
+        if (inputThread.isAlive()) {
+            return;
+        }
+        acceptInput = true;
+        inputThread.start();
+    }
+
+    public void stopToAcceptInput() {
+        acceptInput = false;
+        while (inputThread.isAlive()) {
+            try {
+                inputThread.join();
+            } catch (InterruptedException e) {
+            }
         }
     }
 
@@ -112,13 +123,7 @@ public class Client implements Runnable {
                 }
             }
         }
-        displaySystem.displayText("Server was shutdown. Press enter to exit.");
-        if (inputThread != null) {
-            acceptInput = false;
-            try {
-                inputThread.join();
-            } catch (InterruptedException e) {
-            }
-        }
+        displaySystem.displayText("Server was shutdown. Send anything to exit.");
+        stopToAcceptInput();
     }
 }
