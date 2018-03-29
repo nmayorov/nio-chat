@@ -1,7 +1,7 @@
 package nmayorov.client;
 
 import nmayorov.Connection;
-import nmayorov.message.ClientText;
+import nmayorov.message.UserText;
 import nmayorov.message.Message;
 
 import java.io.IOException;
@@ -33,7 +33,7 @@ public class Client implements Runnable {
         public void run() {
             while (acceptInput) {
                 String input = inputSystem.readChatInput();
-                connection.send(new ClientText(getName(), input));
+                connection.send(new UserText(getName(), input));
             }
         }
     }

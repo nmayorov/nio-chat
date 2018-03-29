@@ -19,7 +19,7 @@ abstract public class Message {
     private static final HashMap<String, Integer> FIELD_COUNT;
     static {
         FIELD_COUNT = new HashMap<>();
-        FIELD_COUNT.put(ClientText.MESSAGE_NAME, ClientText.FIELD_COUNT);
+        FIELD_COUNT.put(UserText.MESSAGE_NAME, UserText.FIELD_COUNT);
         FIELD_COUNT.put(ServerText.MESSAGE_NAME, ServerText.FIELD_COUNT);
         FIELD_COUNT.put(NameAccepted.MESSAGE_NAME, NameAccepted.FIELD_COUNT);
         FIELD_COUNT.put(NameRequest.MESSAGE_NAME, NameRequest.FIELD_COUNT);
@@ -56,8 +56,8 @@ abstract public class Message {
         }
 
         switch (name) {
-            case ClientText.MESSAGE_NAME:
-                return new ClientText(items[1], items[2]);
+            case UserText.MESSAGE_NAME:
+                return new UserText(items[1], items[2]);
             case ServerText.MESSAGE_NAME:
                 return new ServerText(items[1]);
             case NameAccepted.MESSAGE_NAME:

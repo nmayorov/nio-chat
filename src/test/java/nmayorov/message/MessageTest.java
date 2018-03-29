@@ -9,7 +9,7 @@ class MessageTest {
     @Test
     void testFromToBytesConversion() {
         Message messages[] = {
-            new ClientText("Mike", "hi"),
+            new UserText("Mike", "hi"),
             new NameAccepted("Nick"),
             new NameRequest(),
             new NameSent("Andrew"),
@@ -29,7 +29,7 @@ class MessageTest {
 
     @Test
     void testInvalidMessageException() {
-        Message message = new ClientText("Lena", "bye");
+        Message message = new UserText("Lena", "bye");
         byte[] bytes = message.getBytes();
         bytes[2] = (byte) 'X';
 
