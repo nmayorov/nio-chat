@@ -19,9 +19,9 @@ connection)` implement server and client logic when receiving this message.
 The last two methods are designed to allow introducing new messages and corresponding logic without the need to 
 modify `Server` and `Client` code, assuming that `Server` and `Client` have a stable and sufficient API. 
 Obviously this is a somewhat controversial design, because server logic is spread across `Server` and `Message` 
-classes and `Server` needs to provide some sort of "API" to work with messages (the same goes for client logic). 
+classes and `Server` needs to provide some sort of "API" to work with messages (the same goes for the client). 
 However, an alternative design when everything is processed inside `Server` and `Client` seems to violate the 
-open/closed principle and forces to write code with switches and reflection to handle different methods. Maybe there 
+open/closed principle and forces to write code with switches and reflection to handle different messages. Maybe there 
 are better approaches I couldn't come up with.
 
 `Message` objects can be read from byte buffers using `MessageReader`. There is a single `getBytes()` implementation 
