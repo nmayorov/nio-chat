@@ -12,6 +12,8 @@ import java.nio.channels.SocketChannel;
 import java.util.Set;
 
 public class Client implements Runnable {
+    private static final int PAUSE_BETWEEN_IO_CYCLES_MS = 100;
+
     private DisplaySystem displaySystem;
     private InputSystem inputSystem;
 
@@ -19,7 +21,7 @@ public class Client implements Runnable {
     private Selector selector;
 
     private volatile boolean acceptInput;
-    private Thread inputThread = new Thread(new InputThread());
+    private Thread inputThread;
 
     public synchronized void setName(String name) {
         connection.name = name;
@@ -28,12 +30,20 @@ public class Client implements Runnable {
         return connection.name;
     }
 
-    class InputThread implements Runnable {
+    class InputLoop implements Runnable {
+        private final Client client;
+        InputLoop(Client client) {
+            this.client = client;
+        }
+
         @Override
         public void run() {
             while (acceptInput) {
                 String input = inputSystem.readChatInput();
                 connection.send(new UserText(getName(), input));
+                synchronized (client) {
+                    client.notify();
+                }
             }
         }
     }
@@ -63,6 +73,7 @@ public class Client implements Runnable {
     public Client(InputSystem inputSystem, DisplaySystem displaySystem) {
         this.inputSystem = inputSystem;
         this.displaySystem = displaySystem;
+        this.inputThread = new Thread(new InputLoop(this));
     }
 
     public void connect(InetSocketAddress address) throws IOException {
@@ -77,7 +88,15 @@ public class Client implements Runnable {
     public void run() {
         boolean broken = false;
         while (connection.channel.isConnected()) {
+            try {
+                synchronized (this) {
+                    wait(PAUSE_BETWEEN_IO_CYCLES_MS);
+                }
+            } catch (InterruptedException e) {
+            }
+
             int selected = 0;
+
             try {
                 selected = selector.select();
             } catch (IOException e) {
