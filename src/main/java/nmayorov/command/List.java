@@ -7,19 +7,18 @@ import nmayorov.message.ServerText;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-public class List extends Command {
+public class    List extends Command {
     static final String PATTERN = "\\s*\\\\list\\s*$";
     static final String DESCRIPTION = "\\list --- list connected users";
 
     @Override
     public void execute(Server server, Connection connection) {
-        ArrayList<String> lines = new ArrayList<>();
-        lines.add("Connected users:");
+        StringBuilder sb = new StringBuilder("Connected users:");
         Iterator<String> user = server.listUsers();
         while (user.hasNext()) {
-            lines.add(user.next());
+            sb.append('\n');
+            sb.append(user.next());
         }
-        String message = String.join("\n", lines);
-        connection.send(new ServerText(message));
+        connection.send(new ServerText(sb.toString()));
     }
 }
