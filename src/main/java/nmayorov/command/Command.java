@@ -2,12 +2,11 @@ package nmayorov.command;
 
 import nmayorov.Connection;
 import nmayorov.Server;
-import nmayorov.message.ServerText;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Command {
+abstract public class Command {
     private static final String PATTERN = "\\s*\\\\.*$";
 
     public static Command fromString(String string) {
@@ -30,10 +29,8 @@ public class Command {
             return new List();
         }
 
-        return new Command();
+        return new UnknownCommand();
     }
 
-    public void execute(Server server, Connection connection) {
-        connection.send(new ServerText("Unknown command."));
-    }
+    abstract public void execute(Server server, Connection connection);
 }
