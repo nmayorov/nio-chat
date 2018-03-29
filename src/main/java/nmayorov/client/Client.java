@@ -97,7 +97,7 @@ public class Client implements Runnable {
 
                     Message message = MessageReader.next(connection.getReadBuffer());
                     while (message != null) {
-                        displaySystem.displayMessage(message.getText());
+                        displaySystem.displayMessage(message);
                         message.handleClientReceive(this, connection);
                         message = MessageReader.next(connection.getReadBuffer());
                     }
@@ -114,7 +114,7 @@ public class Client implements Runnable {
                 }
             }
         }
-        displaySystem.displayMessage("Server was shutdown. Press enter to exit.");
+        displaySystem.displayText("Server was shutdown. Press enter to exit.");
         if (inputThread != null) {
             acceptInput = false;
             try {
