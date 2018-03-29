@@ -2,10 +2,8 @@ package nmayorov.message;
 
 import java.nio.ByteBuffer;
 
-import nmayorov.message.ByteBufferCutter;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-
 
 class ByteBufferCutterTest {
     static private final byte STOP_BYTE = 0x1E;

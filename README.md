@@ -24,9 +24,9 @@ However, an alternative design when everything is processed inside `Server` and 
 open/closed principle and forces to write code with switches and reflection to handle different messages. Maybe there 
 are better approaches I couldn't come up with.
 
-`Message` objects can be read from byte buffers using `MessageReader`. There is a single `getBytes()` implementation 
-and a single `MessageReader` implementation, because a co-existence of different serialization/deserialization 
-protocols seem unnecessary.
+`Message` objects can be read from byte buffers using `Message.getNext(ByteBuffer buffer)` static method. There is a 
+single `getBytes` implementation and a single `getNext` implementation, because a co-existence of different 
+serialization/deserialization protocols seems unnecessary.
 
 The subpackage `command` contains handlers of special user text messages, which should be considered as "commands". 
 These are very similar to messages, however they are separated from them because I figured that the server should be 
@@ -38,8 +38,8 @@ different GUI settings or use it for a chat bot.
 
 Building and running
 ====================
-Maven build system is used, so you can execute different maven goals as `mvn goal`. To start a demo server and clients
-on localhost:5000 write the following in the root of this repository:
+Maven build system is used, so you can execute different maven goals as `mvn goal`. To start a demo server on 
+localhost:5000 and clients write the following in the root of this repository:
 ```
 mvn package
 java -cp target/chat-0.1-jar-with-dependencies.jar nmayorov/app/StartDemoServer

@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Assertions;
 
 import java.nio.ByteBuffer;
 
-class MessageReaderTest {
+class MessageTest {
     @Test
     void testFromToBytesConversion() {
         Message messages[] = {
@@ -22,7 +22,7 @@ class MessageReaderTest {
         }
 
         for (Message message : messages) {
-            Message messageFromBytes = MessageReader.next(buffer);
+            Message messageFromBytes = Message.getNext(buffer);
             Assertions.assertEquals(message, messageFromBytes);
         }
     }
@@ -36,8 +36,8 @@ class MessageReaderTest {
         ByteBuffer buffer = ByteBuffer.allocate(64);
         buffer.put(bytes);
 
-        Assertions.assertThrows(MessageReader.InvalidMessageException.class,
-                                () -> MessageReader.next(buffer));
+        Assertions.assertThrows(Message.InvalidMessageException.class,
+                                () -> Message.getNext(buffer));
     }
 
     @Test
@@ -46,6 +46,6 @@ class MessageReaderTest {
         byte[] bytes = message.getBytes();
         ByteBuffer buffer = ByteBuffer.allocate(64);
         buffer.put(bytes, 0, 20);
-        Assertions.assertEquals(null, MessageReader.next(buffer));
+        Assertions.assertEquals(null, Message.getNext(buffer));
     }
 }

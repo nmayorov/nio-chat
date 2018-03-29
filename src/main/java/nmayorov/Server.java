@@ -11,7 +11,6 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 
 import nmayorov.message.Message;
-import nmayorov.message.MessageReader;
 import nmayorov.message.NameAccepted;
 import nmayorov.message.NameRequest;
 import nmayorov.message.ServerText;
@@ -179,10 +178,10 @@ public class Server {
             return;
         };
 
-        Message message = MessageReader.next(connection.getReadBuffer());
+        Message message = Message.getNext(connection.getReadBuffer());
         while (message != null) {
             message.handleServerReceive(this, connection);
-            message = MessageReader.next(connection.getReadBuffer());
+            message = Message.getNext(connection.getReadBuffer());
         }
     }
 }

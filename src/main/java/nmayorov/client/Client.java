@@ -3,11 +3,9 @@ package nmayorov.client;
 import nmayorov.Connection;
 import nmayorov.message.ClientText;
 import nmayorov.message.Message;
-import nmayorov.message.MessageReader;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -95,11 +93,11 @@ public class Client implements Runnable {
                         break;
                     }
 
-                    Message message = MessageReader.next(connection.getReadBuffer());
+                    Message message = Message.getNext(connection.getReadBuffer());
                     while (message != null) {
                         displaySystem.displayMessage(message);
                         message.handleClientReceive(this, connection);
-                        message = MessageReader.next(connection.getReadBuffer());
+                        message = Message.getNext(connection.getReadBuffer());
                     }
                 }
 
