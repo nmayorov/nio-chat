@@ -142,7 +142,7 @@ public class Client implements Runnable {
                 }
             }
         }
-        displaySystem.displayText("Server was shutdown. Send anything to exit.");
+        displaySystem.displayText("No connection to server. Send anything to exit.");
         stopToAcceptInput();
     }
 }
