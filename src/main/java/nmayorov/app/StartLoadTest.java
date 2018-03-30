@@ -9,7 +9,7 @@ import java.net.InetSocketAddress;
 
 public class StartLoadTest {
     private static final int PORT = 5000;
-    private static int DEFAULT_BOT_COUNT = 1000;
+    private static int DEFAULT_BOT_COUNT = 100;
 
     public static void main(String[] args) throws IOException {
         int botCount;

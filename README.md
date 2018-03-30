@@ -50,10 +50,11 @@ java -cp target/chat-0.1-jar-with-dependencies.jar nmayorov/app/StartDemoClient
 ... 
 ```
 
-To start a server and connect 1000 chat bots to it:
+To start a server and connect a bunch of bots to it:
 ```
 mvn package
 java -cp target/chat-0.1-jar-with-dependencies.jar nmayorov/app/StartDemoServer
 # In another shell
-java -cp target/chat-0.1-jar-with-dependencies.jar nmayorov/app/StartLoadTest
+java -cp target/chat-0.1-jar-with-dependencies.jar nmayorov/app/StartLoadTest [number of bots]
 ```
+If `[number of bots]` is not provided, 100 will be used.
