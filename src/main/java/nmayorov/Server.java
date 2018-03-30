@@ -100,7 +100,7 @@ public class Server {
             for (byte[] message : messageHistory) {
                 connection.send(message);
             }
-            LOGGER.log(Level.INFO, String.format("User name %s is assigned", name));
+            LOGGER.log(Level.INFO, String.format("User %d is registered as %s", connections.size(), name));
         }
     }
 

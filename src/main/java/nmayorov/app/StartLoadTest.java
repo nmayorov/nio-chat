@@ -1,7 +1,7 @@
 package nmayorov.app;
 
 import nmayorov.client.Client;
-import nmayorov.client.ConsoleDisplay;
+import nmayorov.client.NoDisplay;
 import nmayorov.client.SpamBot;
 
 import java.io.IOException;
@@ -19,7 +19,7 @@ public class StartLoadTest {
             botCount = DEFAULT_BOT_COUNT;
         }
         for (int i = 0; i < botCount; ++i) {
-            Client c = new Client(new SpamBot(), new ConsoleDisplay());
+            Client c = new Client(new SpamBot(), new NoDisplay());
             c.connect(new InetSocketAddress(PORT));
             Thread t = new Thread(c);
             t.start();
