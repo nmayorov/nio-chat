@@ -2,8 +2,6 @@ package nmayorov.command;
 
 import nmayorov.Connection;
 import nmayorov.Server;
-import nmayorov.message.NameAccepted;
-import nmayorov.message.ServerText;
 
 public class Name extends Command {
     static final String PATTERN = "\\s*\\\\name\\s*(.*)$";

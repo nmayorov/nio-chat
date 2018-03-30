@@ -1,5 +1,7 @@
 package nmayorov.command;
 
+import java.util.Set;
+
 import nmayorov.Connection;
 import nmayorov.Server;
 import nmayorov.message.ServerText;
@@ -10,8 +12,9 @@ public class List extends Command {
 
     @Override
     public void execute(Server server, Connection connection) {
-        StringBuilder sb = new StringBuilder("Connected users:");
-        for (String user : server.getConnectedUsers()) {
+        Set<String> users = server.getConnectedUsers();
+        StringBuilder sb = new StringBuilder(String.format("Currently %d users connected:", users.size()));
+        for (String user : users) {
             sb.append('\n');
             sb.append(user);
         }
