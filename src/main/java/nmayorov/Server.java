@@ -21,11 +21,11 @@ import nmayorov.message.NameAccepted;
 import nmayorov.message.NameRequest;
 import nmayorov.message.ServerText;
 
-
 public class Server {
     private static final Logger LOGGER = Logger.getLogger(Server.class.getName());
     private static final int HISTORY_SIZE = 100;
 
+    private final InetSocketAddress address;
     private ServerSocketChannel serverChannel;
     private Selector selector;
 
@@ -51,17 +51,11 @@ public class Server {
         }
     }
 
-    public Server() {
+    public Server(InetSocketAddress address) {
+        this.address = address;
         pendingConnections = new ArrayDeque<>();
         connections = new HashMap<>();
         messageHistory = new CircularFifoQueue<>(HISTORY_SIZE);
-    }
-
-    public void start(InetSocketAddress address) throws IOException {
-        LOGGER.log(Level.INFO, "Starting server at " + address);
-        serverChannel = ServerSocketChannel.open();
-        serverChannel.bind(address);
-        selector = Selector.open();
         acceptingThread = new Thread(new ConnectionAcceptor());
     }
 
@@ -89,7 +83,13 @@ public class Server {
         }
     }
 
-    public void run() {
+    public void start() throws IOException {
+        LOGGER.log(Level.INFO, "Starting server at " + address);
+
+        serverChannel = ServerSocketChannel.open();
+        serverChannel.bind(address);
+        selector = Selector.open();
+
         acceptingThread.start();
         while (serverChannel.isOpen()) {
             handlePendingConnections();
@@ -179,24 +179,6 @@ public class Server {
             connections.remove(connection.name);
             broadcast(new ServerText(connection.name + " left the chat."));
             LOGGER.log(Level.INFO, String.format("User %s disconnected", connection.name));
-        }
-    }
-
-    private void handleAccept(SelectionKey serverKey) {
-        Connection connection = null;
-        try {
-            ServerSocketChannel serverChannel = (ServerSocketChannel) serverKey.channel();
-            connection = new Connection(serverChannel.accept());
-            LOGGER.log(Level.INFO,
-                       "Connection attempt from " + connection.channel.getRemoteAddress().toString());
-            connection.channel.configureBlocking(false);
-            connection.channel.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, connection);
-            connection.send(new ServerText("Enter your name."));
-            connection.send(new NameRequest());
-        } catch (IOException e) {
-            if (connection != null) {
-                cancelConnection(connection);
-            }
         }
     }
 
