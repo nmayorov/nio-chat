@@ -2,7 +2,7 @@ package nmayorov.client;
 
 import java.util.Random;
 
-public class RandomSpamBot implements InputSystem {
+public class SpamBot implements InputSystem {
     static private final String LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     static private final int MAX_WAIT_BEFORE_MESSAGE_MS = 10000;
     static private final int MAX_NAME_LENGTH = 10;
@@ -18,7 +18,7 @@ public class RandomSpamBot implements InputSystem {
         return new String(letters);
     }
 
-    public RandomSpamBot() {
+    public SpamBot() {
         rng = new Random();
     }
 
