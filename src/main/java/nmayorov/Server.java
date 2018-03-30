@@ -5,12 +5,14 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.Collections;
 import java.util.logging.Logger;
 import java.util.logging.Level;
-import java.util.Collections;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 
@@ -18,6 +20,7 @@ import nmayorov.message.Message;
 import nmayorov.message.NameAccepted;
 import nmayorov.message.NameRequest;
 import nmayorov.message.ServerText;
+
 
 public class Server {
     private static final Logger LOGGER = Logger.getLogger(Server.class.getName());
@@ -29,7 +32,27 @@ public class Server {
     private HashMap<String, Connection> connections;
     private CircularFifoQueue<byte[]> messageHistory;
 
+    private Thread acceptingThread;
+    private ArrayDeque<Connection> pendingConnections;
+
+    private class ConnectionAcceptor implements Runnable {
+        @Override
+        public void run() {
+            while (serverChannel.isOpen()) {
+                try {
+                    SocketChannel channel = serverChannel.accept();
+                    addPendingConnection(new Connection(channel));
+                    selector.wakeup();
+                    LOGGER.info("Connection from " + channel.getRemoteAddress().toString());
+                } catch (IOException e) {
+                    LOGGER.warning("Error accepting connection");
+                }
+            }
+        }
+    }
+
     public Server() {
+        pendingConnections = new ArrayDeque<>();
         connections = new HashMap<>();
         messageHistory = new CircularFifoQueue<>(HISTORY_SIZE);
     }
@@ -38,13 +61,39 @@ public class Server {
         LOGGER.log(Level.INFO, "Starting server at " + address);
         serverChannel = ServerSocketChannel.open();
         serverChannel.bind(address);
-        serverChannel.configureBlocking(false);
         selector = Selector.open();
-        serverChannel.register(selector, SelectionKey.OP_ACCEPT);
+        acceptingThread = new Thread(new ConnectionAcceptor());
+    }
+
+    private synchronized void addPendingConnection(Connection connection) {
+        pendingConnections.add(connection);
+    }
+
+    private synchronized Connection pollPendingConnection() {
+        return pendingConnections.poll();
+    }
+
+    private void handlePendingConnections() {
+        Connection connection = pollPendingConnection();
+        while (connection != null) {
+            try {
+                connection.channel.configureBlocking(false);
+                connection.channel.register(selector,
+                                            SelectionKey.OP_READ | SelectionKey.OP_WRITE, connection);
+                connection.send(new ServerText("Enter your name."));
+                connection.send(new NameRequest());
+            } catch (IOException e) {
+                LOGGER.warning("Error registering connection");
+            }
+            connection = pollPendingConnection();
+        }
     }
 
     public void run() {
+        acceptingThread.start();
         while (serverChannel.isOpen()) {
+            handlePendingConnections();
+
             int selected;
             try {
                 selected = selector.select();
@@ -60,9 +109,6 @@ public class Server {
             while (keyIterator.hasNext()) {
                 SelectionKey key = keyIterator.next();
                 keyIterator.remove();
-                if (key.isValid() && key.isAcceptable()) {
-                    handleAccept(key);
-                }
                 if (key.isValid() && key.isReadable()) {
                     handleRead(key);
                 }
@@ -70,6 +116,10 @@ public class Server {
                     handleWrite(key);
                 }
             }
+        }
+        try {
+            acceptingThread.join();
+        } catch (InterruptedException e) {
         }
     }
 
