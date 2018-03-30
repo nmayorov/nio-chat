@@ -39,7 +39,7 @@ different GUI settings or use it for a chat bot.
 Building and running
 ====================
 Maven build system is used, so you can execute different maven goals as `mvn goal`. To start a demo server on 
-localhost:5000 and clients write the following in the root of this repository:
+localhost:5000 and clients execute the following in the root of this repository:
 ```
 mvn package
 java -cp target/chat-0.1-jar-with-dependencies.jar nmayorov/app/StartDemoServer
@@ -48,4 +48,12 @@ java -cp target/chat-0.1-jar-with-dependencies.jar nmayorov/app/StartDemoClient
 # And another client in another shell
 java -cp target/chat-0.1-jar-with-dependencies.jar nmayorov/app/StartDemoClient
 ... 
+```
+
+To start a server and connect 1000 chat bots to it:
+```
+mvn package
+java -cp target/chat-0.1-jar-with-dependencies.jar nmayorov/app/StartDemoServer
+# In another shell
+java -cp target/chat-0.1-jar-with-dependencies.jar nmayorov/app/StartLoadTest
 ```
