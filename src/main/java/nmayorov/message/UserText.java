@@ -23,7 +23,7 @@ public class UserText extends Message {
     public void handleServerReceive(Server server, Connection connection) {
         Command command = Command.fromString(fields.get(2));
         if (command == null) {
-            server.addMessageToHistory(getBytes());
+            server.saveMessageInHistory(getBytes());
             server.broadcast(this);
         } else {
             command.execute(server, connection);

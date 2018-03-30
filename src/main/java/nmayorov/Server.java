@@ -7,15 +7,17 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.logging.Logger;
 import java.util.logging.Level;
+import java.util.Collections;
+
+import org.apache.commons.collections4.queue.CircularFifoQueue;
 
 import nmayorov.message.Message;
 import nmayorov.message.NameAccepted;
 import nmayorov.message.NameRequest;
 import nmayorov.message.ServerText;
-
-import org.apache.commons.collections4.queue.CircularFifoQueue;
 
 public class Server {
     private static final Logger LOGGER = Logger.getLogger(Server.class.getName());
@@ -78,7 +80,9 @@ public class Server {
         }
     }
 
-    public Iterator<String> listUsers() { return connections.keySet().iterator(); }
+    public Set<String> getConnectedUsers() {
+        return Collections.unmodifiableSet(connections.keySet());
+    }
 
     public void registerNewConnection(String name, Connection connection) {
         if (name.isEmpty()) {
@@ -92,11 +96,11 @@ public class Server {
             connection.name = name;
             connection.send(new ServerText("Welcome to the chat! Type \\help for help."));
             connections.put(name, connection);
-            LOGGER.log(Level.INFO, String.format("User name %s is assigned", name));
             broadcast(new ServerText(name + " joined the chat!"));
             for (byte[] message : messageHistory) {
                 connection.send(message);
             }
+            LOGGER.log(Level.INFO, String.format("User name %s is assigned", name));
         }
     }
 
@@ -111,41 +115,35 @@ public class Server {
             connections.remove(connection.name);
             connection.name = newName;
             connections.put(connection.name, connection);
-            LOGGER.log(Level.INFO, String.format("User %s is renamed to %s", oldName, newName));
             broadcast(new ServerText(String.format("%s is now %s.", oldName, newName)));
+            LOGGER.log(Level.INFO, String.format("User %s is renamed to %s", oldName, newName));
         }
     }
 
-    public void addMessageToHistory(byte[] bytes) {
+    public void saveMessageInHistory(byte[] bytes) {
         messageHistory.add(bytes);
     }
 
     private void cancelConnection(Connection connection) {
         if (connections.containsKey(connection.name)) {
             connections.remove(connection.name);
-            LOGGER.log(Level.INFO, String.format("User %s disconnected", connection.name));
             broadcast(new ServerText(connection.name + " left the chat."));
+            LOGGER.log(Level.INFO, String.format("User %s disconnected", connection.name));
         }
     }
 
-    private void handleAccept(SelectionKey serverChannelKey) {
-        SelectionKey sockerChannelKey = null;
+    private void handleAccept(SelectionKey serverKey) {
         Connection connection = null;
-
         try {
-            ServerSocketChannel serverChannel = (ServerSocketChannel) serverChannelKey.channel();
+            ServerSocketChannel serverChannel = (ServerSocketChannel) serverKey.channel();
             connection = new Connection(serverChannel.accept());
             LOGGER.log(Level.INFO,
                        "Connection attempt from " + connection.channel.getRemoteAddress().toString());
             connection.channel.configureBlocking(false);
-            sockerChannelKey = connection.channel.register(
-                    selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, connection);
+            connection.channel.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, connection);
             connection.send(new ServerText("Enter your name."));
             connection.send(new NameRequest());
         } catch (IOException e) {
-            if (sockerChannelKey != null) {
-                sockerChannelKey.cancel();
-            }
             if (connection != null) {
                 cancelConnection(connection);
             }
