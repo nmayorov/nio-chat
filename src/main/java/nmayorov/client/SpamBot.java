@@ -42,6 +42,8 @@ public class SpamBot implements InputSystem {
                 return "\\list";
             case 2:
                 return "\\name " + randomString(10);
+            case 3:
+                return "\\exit";
             default:
                 return randomString(rng.nextInt(MAX_MESSAGE_LENGTH));
         }
