@@ -111,6 +111,7 @@ public class Server {
             try {
                 selected = selector.select();
             } catch (IOException e) {
+                LOGGER.severe("Error selecting IO channels. The server functionality might be broken.");
                 selected = 0;
             }
 
@@ -196,6 +197,7 @@ public class Server {
             try {
                 connection.channel.close();
             } catch (Exception e) {
+                LOGGER.warning("Error closing connection");
             }
             connections.remove(connection.name);
             broadcast(new ServerText(connection.name + " left the chat."));
