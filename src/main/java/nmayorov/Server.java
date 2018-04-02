@@ -200,7 +200,7 @@ public class Server {
             }
             connections.remove(connection.name);
             broadcast(new ServerText(connection.name + " left the chat."));
-            LOGGER.log(Level.INFO, String.format("User %s disconnected", connection.name));
+            LOGGER.info(String.format("User %s disconnected, % d left", connection.name, connections.size()));
         }
     }
 
