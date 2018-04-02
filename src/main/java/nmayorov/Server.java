@@ -13,7 +13,6 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.Collections;
 import java.util.logging.Logger;
-import java.util.logging.Level;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 
@@ -97,7 +96,7 @@ public class Server {
     }
 
     public void start() throws IOException {
-        LOGGER.log(Level.INFO, "Starting server at " + address);
+        LOGGER.info("Starting server at " + address);
 
         serverChannel = ServerSocketChannel.open();
         serverChannel.bind(address);
@@ -164,7 +163,7 @@ public class Server {
             for (byte[] message : messageHistory) {
                 connection.send(message);
             }
-            LOGGER.log(Level.INFO, String.format("User %d is registered as %s", connections.size(), name));
+            LOGGER.info(String.format("User %d is registered as %s", connections.size(), name));
         }
     }
 
@@ -180,7 +179,7 @@ public class Server {
             connection.name = newName;
             connections.put(connection.name, connection);
             broadcast(new ServerText(String.format("%s is now %s.", oldName, newName)));
-            LOGGER.log(Level.INFO, String.format("User %s is renamed to %s", oldName, newName));
+            LOGGER.info(String.format("User %s is renamed to %s", oldName, newName));
         }
     }
 
