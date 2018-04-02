@@ -32,6 +32,10 @@ public class Connection {
         send(message.getBytes());
     }
 
+    public boolean nothingToWrite() {
+        return writeBuffers.isEmpty();
+    }
+
     public void write() throws IOException {
         while (!writeBuffers.isEmpty()) {
             ByteBuffer head = writeBuffers.peekFirst();

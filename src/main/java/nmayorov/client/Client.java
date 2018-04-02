@@ -23,6 +23,9 @@ public class Client implements Runnable {
     private volatile boolean acceptInput;
     private Thread inputThread;
 
+    private enum Status {RUNNING, STOPPED, DISCONNECT};
+    private volatile Status status;
+
     public synchronized void setName(String name) {
         connection.name = name;
     }
@@ -86,8 +89,8 @@ public class Client implements Runnable {
     }
 
     public void run() {
-        boolean broken = false;
-        while (connection.channel.isConnected()) {
+        status = Status.RUNNING;
+        while (status == Status.RUNNING) {
             try {
                 synchronized (this) {
                     wait(PAUSE_BETWEEN_IO_CYCLES_MS);
@@ -96,15 +99,10 @@ public class Client implements Runnable {
             }
 
             int selected = 0;
-
             try {
                 selected = selector.select();
             } catch (IOException e) {
-                broken = true;
-            }
-
-            if (broken) {
-                break;
+                status = Status.DISCONNECT;
             }
 
             if (selected == 0) {
@@ -114,12 +112,12 @@ public class Client implements Runnable {
             Set<SelectionKey> selectedKeys = selector.selectedKeys();
             for (SelectionKey key : selectedKeys) {
                 selectedKeys.remove(key);
-                if (key.isReadable()) {
+                if (key.isValid() && key.isReadable()) {
 
                     try {
                         connection.read();
                     } catch (IOException e) {
-                        broken = true;
+                        status = Status.DISCONNECT;
                         break;
                     }
 
@@ -131,18 +129,32 @@ public class Client implements Runnable {
                     }
                 }
 
-                if (key.isWritable()) {
+                if (key.isValid() && key.isWritable()) {
                     try {
                         connection.write();
                     } catch (IOException e) {
-                        broken = true;
+                        status = Status.DISCONNECT;
                         break;
                     }
 
                 }
             }
         }
-        displaySystem.displayText("No connection to server. Send anything to exit.");
+
+        switch (status) {
+            case STOPPED:
+                displaySystem.displayText("Input anything to exit.");
+                break;
+            case DISCONNECT:
+                displaySystem.displayText("Connection to server interrupted. Input anything to exit.");
+            case RUNNING:
+                assert false;
+        }
+
         stopToAcceptInput();
+    }
+
+    public void stop() {
+        status = Status.STOPPED;
     }
 }

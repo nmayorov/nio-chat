@@ -7,6 +7,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayDeque;
+import java.util.LinkedList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
@@ -33,7 +34,8 @@ public class Server {
     private CircularFifoQueue<byte[]> messageHistory;
 
     private Thread acceptingThread;
-    private ArrayDeque<Connection> pendingConnections;
+    private final ArrayDeque<Connection> connectionsToRegister;
+    private LinkedList<Connection> connectionsToRemove;
 
     private class ConnectionAcceptor implements Runnable {
         @Override
@@ -41,7 +43,9 @@ public class Server {
             while (serverChannel.isOpen()) {
                 try {
                     SocketChannel channel = serverChannel.accept();
-                    addPendingConnection(new Connection(channel));
+                    synchronized (connectionsToRegister) {
+                        connectionsToRegister.add(new Connection(channel));
+                    }
                     selector.wakeup();
                     LOGGER.info("Connection from " + channel.getRemoteAddress().toString());
                 } catch (IOException e) {
@@ -53,22 +57,18 @@ public class Server {
 
     public Server(InetSocketAddress address) {
         this.address = address;
-        pendingConnections = new ArrayDeque<>();
+        connectionsToRegister = new ArrayDeque<>();
+        connectionsToRemove = new LinkedList<>();
         connections = new HashMap<>();
         messageHistory = new CircularFifoQueue<>(HISTORY_SIZE);
         acceptingThread = new Thread(new ConnectionAcceptor());
     }
 
-    private synchronized void addPendingConnection(Connection connection) {
-        pendingConnections.add(connection);
-    }
-
-    private synchronized Connection pollPendingConnection() {
-        return pendingConnections.poll();
-    }
-
-    private void handlePendingConnections() {
-        Connection connection = pollPendingConnection();
+    private void handleConnectionsToRegister() {
+        Connection connection;
+        synchronized (connectionsToRegister) {
+            connection = connectionsToRegister.poll();
+        }
         while (connection != null) {
             try {
                 connection.channel.configureBlocking(false);
@@ -79,7 +79,20 @@ public class Server {
             } catch (IOException e) {
                 LOGGER.warning("Error registering connection");
             }
-            connection = pollPendingConnection();
+            synchronized (connectionsToRegister) {
+                connection = connectionsToRegister.poll();
+            }
+        }
+    }
+
+    private void handleConnectionsToRemove() {
+        Iterator<Connection> it = connectionsToRemove.iterator();
+        while (it.hasNext()) {
+            Connection connection = it.next();
+            if (connection.nothingToWrite()) {
+                closeConnection(connection);
+                it.remove();
+            }
         }
     }
 
@@ -92,7 +105,8 @@ public class Server {
 
         acceptingThread.start();
         while (serverChannel.isOpen()) {
-            handlePendingConnections();
+            handleConnectionsToRegister();
+            handleConnectionsToRemove();
 
             int selected;
             try {
@@ -170,12 +184,20 @@ public class Server {
         }
     }
 
+    public void removeConnection(Connection connection) {
+        connectionsToRemove.add(connection);
+    }
+
     public void saveMessageInHistory(byte[] bytes) {
         messageHistory.add(bytes);
     }
 
-    private void cancelConnection(Connection connection) {
+    private void closeConnection(Connection connection) {
         if (connections.containsKey(connection.name)) {
+            try {
+                connection.channel.close();
+            } catch (Exception e) {
+            }
             connections.remove(connection.name);
             broadcast(new ServerText(connection.name + " left the chat."));
             LOGGER.log(Level.INFO, String.format("User %s disconnected", connection.name));
@@ -188,7 +210,7 @@ public class Server {
             connection.write();
         } catch (IOException e) {
             key.cancel();
-            cancelConnection(connection);
+            closeConnection(connection);
         }
     }
 
@@ -204,9 +226,9 @@ public class Server {
 
         if (read == -1) {
             key.cancel();
-            cancelConnection(connection);
+            closeConnection(connection);
             return;
-        };
+        }
 
         Message message = Message.getNext(connection.getReadBuffer());
         while (message != null) {

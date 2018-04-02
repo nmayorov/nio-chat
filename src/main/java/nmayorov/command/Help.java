@@ -15,7 +15,8 @@ public class Help extends Command {
             "Available commands:",
             Help.DESCRIPTION,
             Name.DESCRIPTION,
-            List.DESCRIPTION
+            List.DESCRIPTION,
+            Exit.DESCRIPTION
         };
         String message = String.join("\n", lines);
         connection.send(new ServerText(message));

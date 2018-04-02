@@ -24,6 +24,7 @@ abstract public class Message {
         FIELD_COUNT.put(NameAccepted.MESSAGE_NAME, NameAccepted.FIELD_COUNT);
         FIELD_COUNT.put(NameRequest.MESSAGE_NAME, NameRequest.FIELD_COUNT);
         FIELD_COUNT.put(NameSent.MESSAGE_NAME, NameSent.FIELD_COUNT);
+        FIELD_COUNT.put(Disconnect.MESSAGE_NAME, Disconnect.FIELD_COUNT);
     }
 
     public static Message getNext(ByteBuffer buffer) throws InvalidMessageException {
@@ -66,6 +67,8 @@ abstract public class Message {
                 return new NameRequest();
             case NameSent.MESSAGE_NAME:
                 return new NameSent(items[1]);
+            case Disconnect.MESSAGE_NAME:
+                return new Disconnect();
             default:
                 assert false : "You forgot to add some case!";
         }

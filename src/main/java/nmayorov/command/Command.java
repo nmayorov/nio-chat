@@ -29,6 +29,11 @@ abstract public class Command {
             return new List();
         }
 
+        p = Pattern.compile(Exit.PATTERN).matcher(string);
+        if (p.matches()) {
+            return new Exit();
+        }
+
         return new UnknownCommand();
     }
 
