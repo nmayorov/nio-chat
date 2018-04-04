@@ -18,7 +18,6 @@ public class StartLoadTest {
         } else {
             botCount = DEFAULT_BOT_COUNT;
         }
-        System.out.println(botCount);
         for (int i = 0; i < botCount; ++i) {
             Client c = new Client(new SpamBot(), new ConsoleDisplay());
             c.connect(new InetSocketAddress(PORT));
