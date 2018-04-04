@@ -1,4 +1,4 @@
-package nmayorov;
+package nmayorov.server;
 
 import nmayorov.message.Message;
 
@@ -18,11 +18,14 @@ public class Connection {
     public SocketChannel channel;
     public String name;
 
+    private boolean closeRequested = false;
+
     public Connection(SocketChannel channel) {
         this.channel = channel;
         name = null;
         writeBuffers = new ArrayDeque<>();
         readBuffer = ByteBuffer.allocate(INITIAL_READ_BUFFER_CAPACITY);
+        closeRequested = false;
     }
 
     public void send(byte[] bytes) {
@@ -34,6 +37,14 @@ public class Connection {
 
     public boolean nothingToWrite() {
         return writeBuffers.isEmpty();
+    }
+
+    public void requestClose() {
+        closeRequested = true;
+    }
+
+    public boolean shouldClose() {
+        return closeRequested;
     }
 
     public void write() throws IOException {

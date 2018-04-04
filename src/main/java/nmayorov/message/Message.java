@@ -1,8 +1,5 @@
 package nmayorov.message;
 
-import nmayorov.client.Client;
-import nmayorov.Connection;
-import nmayorov.Server;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -14,7 +11,7 @@ abstract public class Message {
     private static final byte MESSAGE_END = 0x1E;
     private static final Charset CHARSET = Charset.forName("UTF-8");
 
-    public static class InvalidMessageException extends RuntimeException {};
+    public static class InvalidMessageException extends RuntimeException {}
 
     private static final HashMap<String, Integer> FIELD_COUNT;
     static {
@@ -81,7 +78,7 @@ abstract public class Message {
     Message(String messageName) {
         fields = new ArrayList<>();
         fields.add(messageName);
-    };
+    }
 
     public byte[] getBytes() {
         String separator = Character.toString((char) FIELD_DELIMITER);
@@ -93,8 +90,6 @@ abstract public class Message {
     public String getText() {
         return null;
     }
-    public void handleServerReceive(Server server, Connection connection) {}
-    public void handleClientReceive(Client client, Connection connection) {}
 
     @Override
     public boolean equals(Object obj) {

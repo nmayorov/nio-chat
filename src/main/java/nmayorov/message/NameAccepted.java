@@ -1,7 +1,5 @@
 package nmayorov.message;
 
-import nmayorov.client.Client;
-import nmayorov.Connection;
 
 public class NameAccepted extends Message {
     static final String MESSAGE_NAME = "NAME_ACCEPTED";
@@ -12,9 +10,7 @@ public class NameAccepted extends Message {
         fields.add(name);
     }
 
-    @Override
-    public void handleClientReceive(Client client, Connection connection) {
-        client.setName(fields.get(1));
-        client.startToAcceptInput();
+    public String getName() {
+        return fields.get(1);
     }
 }

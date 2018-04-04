@@ -13,11 +13,12 @@ public class StartLoadTest {
 
     public static void main(String[] args) throws IOException {
         int botCount;
-        if (args.length == 2) {
-            botCount = Integer.valueOf(args[1]);
+        if (args.length == 1) {
+            botCount = Integer.valueOf(args[0]);
         } else {
             botCount = DEFAULT_BOT_COUNT;
         }
+        System.out.println(botCount);
         for (int i = 0; i < botCount; ++i) {
             Client c = new Client(new SpamBot(), new ConsoleDisplay());
             c.connect(new InetSocketAddress(PORT));

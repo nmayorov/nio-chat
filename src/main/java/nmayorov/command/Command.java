@@ -1,8 +1,5 @@
 package nmayorov.command;
 
-import nmayorov.Connection;
-import nmayorov.Server;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,6 +33,4 @@ abstract public class Command {
 
         return new UnknownCommand();
     }
-
-    abstract public void execute(Server server, Connection connection);
 }

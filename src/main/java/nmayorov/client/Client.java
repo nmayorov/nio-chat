@@ -1,6 +1,8 @@
 package nmayorov.client;
 
-import nmayorov.Connection;
+import nmayorov.server.Connection;
+import nmayorov.message.NameAccepted;
+import nmayorov.message.NameSent;
 import nmayorov.message.UserText;
 import nmayorov.message.Message;
 
@@ -23,15 +25,7 @@ public class Client implements Runnable {
     private volatile boolean acceptInput;
     private Thread inputThread;
 
-    private enum Status {RUNNING, STOPPED, DISCONNECT};
-    private volatile Status status;
-
-    public synchronized void setName(String name) {
-        connection.name = name;
-    }
-    public synchronized String getName() {
-        return connection.name;
-    }
+    private boolean run;
 
     class InputLoop implements Runnable {
         private final Client client;
@@ -43,7 +37,9 @@ public class Client implements Runnable {
         public void run() {
             while (acceptInput) {
                 String input = inputSystem.readChatInput();
-                connection.send(new UserText(getName(), input));
+                synchronized (connection) {
+                    connection.send(new UserText(connection.name, input));
+                }
                 synchronized (client) {
                     client.notify();
                 }
@@ -51,7 +47,7 @@ public class Client implements Runnable {
         }
     }
 
-    public void startToAcceptInput() {
+    private void startToAcceptInput() {
         if (inputThread.isAlive()) {
             return;
         }
@@ -59,7 +55,7 @@ public class Client implements Runnable {
         inputThread.start();
     }
 
-    public void stopToAcceptInput() {
+    private void stopToAcceptInput() {
         acceptInput = false;
         while (inputThread.isAlive()) {
             try {
@@ -67,10 +63,6 @@ public class Client implements Runnable {
             } catch (InterruptedException e) {
             }
         }
-    }
-
-    public String inputName() {
-        return inputSystem.readName();
     }
 
     public Client(InputSystem inputSystem, DisplaySystem displaySystem) {
@@ -88,9 +80,30 @@ public class Client implements Runnable {
         connection.channel.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
     }
 
+    private void handleMessage(Message message) {
+        switch (message.getClass().getSimpleName()) {
+            case "NameRequest": {
+                String name = inputSystem.readName();
+                connection.send(new NameSent(name));
+                break;
+            }
+            case "NameAccepted": {
+                String name = ((NameAccepted) message).getName();
+                synchronized (connection) {
+                    connection.name = name;
+                }
+                startToAcceptInput();
+                break;
+            }
+            case "Disconnect": {
+                run = false;
+            }
+        }
+    }
+
     public void run() {
-        status = Status.RUNNING;
-        while (status == Status.RUNNING) {
+        run = true;
+        while (run) {
             try {
                 synchronized (this) {
                     wait(PAUSE_BETWEEN_IO_CYCLES_MS);
@@ -102,7 +115,7 @@ public class Client implements Runnable {
             try {
                 selected = selector.select();
             } catch (IOException e) {
-                status = Status.DISCONNECT;
+                run = false;
             }
 
             if (selected == 0) {
@@ -117,14 +130,14 @@ public class Client implements Runnable {
                     try {
                         connection.read();
                     } catch (IOException e) {
-                        status = Status.DISCONNECT;
+                        run = false;
                         break;
                     }
 
                     Message message = Message.getNext(connection.getReadBuffer());
                     while (message != null) {
                         displaySystem.displayMessage(message);
-                        message.handleClientReceive(this, connection);
+                        handleMessage(message);
                         message = Message.getNext(connection.getReadBuffer());
                     }
                 }
@@ -133,28 +146,14 @@ public class Client implements Runnable {
                     try {
                         connection.write();
                     } catch (IOException e) {
-                        status = Status.DISCONNECT;
+                        run = false;
                         break;
                     }
 
                 }
             }
         }
-
-        switch (status) {
-            case STOPPED:
-                displaySystem.displayText("Input anything to exit.");
-                break;
-            case DISCONNECT:
-                displaySystem.displayText("Connection to server interrupted. Input anything to exit.");
-            case RUNNING:
-                assert false;
-        }
-
+        displaySystem.displayText("Disconnected from server. Input anything to exit.");
         stopToAcceptInput();
-    }
-
-    public void stop() {
-        status = Status.STOPPED;
     }
 }

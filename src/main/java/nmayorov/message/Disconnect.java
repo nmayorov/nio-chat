@@ -1,7 +1,5 @@
 package nmayorov.message;
 
-import nmayorov.Connection;
-import nmayorov.client.Client;
 
 public class Disconnect extends Message {
     static final String MESSAGE_NAME = "DISCONNECT";
@@ -9,10 +7,5 @@ public class Disconnect extends Message {
 
     public Disconnect() {
         super(MESSAGE_NAME);
-    }
-
-    @Override
-    public void handleClientReceive(Client client, Connection connection) {
-        client.stop();
     }
 }

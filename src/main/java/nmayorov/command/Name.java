@@ -1,11 +1,8 @@
 package nmayorov.command;
 
-import nmayorov.Connection;
-import nmayorov.Server;
-
 public class Name extends Command {
     static final String PATTERN = "\\s*\\\\name\\s*(.*)$";
-    static final String DESCRIPTION = "\\name name --- change the name to a new one";
+    public static final String DESCRIPTION = "\\name name --- change the name to a new one";
 
     private String name;
     Name(String name) {
@@ -14,10 +11,5 @@ public class Name extends Command {
 
     public String getName() {
         return name;
-    }
-
-    @Override
-    public void execute(Server server, Connection connection) {
-        server.renameConnection(name, connection);
     }
 }
