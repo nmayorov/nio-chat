@@ -1,6 +1,5 @@
 package nmayorov.message;
 
-
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -11,17 +10,19 @@ abstract public class Message {
     private static final byte MESSAGE_END = 0x1E;
     private static final Charset CHARSET = Charset.forName("UTF-8");
 
-    public static class InvalidMessageException extends RuntimeException {}
+    public static class InvalidMessageException extends RuntimeException {};
 
-    private static final HashMap<String, Integer> FIELD_COUNT;
+    public enum Type {DISCONNECT, NAME_ACCEPTED, NAME_REQUEST, NAME_SENT, SERVER_TEXT, USER_TEXT};
+
+    private static final HashMap<Type, Integer> FIELD_COUNT;
     static {
         FIELD_COUNT = new HashMap<>();
-        FIELD_COUNT.put(UserText.MESSAGE_NAME, UserText.FIELD_COUNT);
-        FIELD_COUNT.put(ServerText.MESSAGE_NAME, ServerText.FIELD_COUNT);
-        FIELD_COUNT.put(NameAccepted.MESSAGE_NAME, NameAccepted.FIELD_COUNT);
-        FIELD_COUNT.put(NameRequest.MESSAGE_NAME, NameRequest.FIELD_COUNT);
-        FIELD_COUNT.put(NameSent.MESSAGE_NAME, NameSent.FIELD_COUNT);
-        FIELD_COUNT.put(Disconnect.MESSAGE_NAME, Disconnect.FIELD_COUNT);
+        FIELD_COUNT.put(Type.DISCONNECT, 0);
+        FIELD_COUNT.put(Type.NAME_ACCEPTED, 1);
+        FIELD_COUNT.put(Type.NAME_REQUEST, 0);
+        FIELD_COUNT.put(Type.NAME_SENT, 1);
+        FIELD_COUNT.put(Type.SERVER_TEXT, 1);
+        FIELD_COUNT.put(Type.USER_TEXT, 2);
     }
 
     public static Message getNext(ByteBuffer buffer) throws InvalidMessageException {
@@ -44,27 +45,30 @@ abstract public class Message {
         }
 
         String name = items[0];
-        if (!FIELD_COUNT.containsKey(name)) {
+        Type type;
+        try {
+            type = Type.valueOf(name);
+        } catch (IllegalArgumentException e) {
             throw new InvalidMessageException();
         }
 
-        Integer fieldCount = FIELD_COUNT.get(name);
-        if (fieldCount != null && fieldCount + 1 != items.length) {
+        Integer fieldCount = FIELD_COUNT.get(type);
+        if (fieldCount + 1 != items.length) {
             throw new InvalidMessageException();
         }
 
-        switch (name) {
-            case UserText.MESSAGE_NAME:
+        switch (type) {
+            case USER_TEXT:
                 return new UserText(items[1], items[2]);
-            case ServerText.MESSAGE_NAME:
+            case SERVER_TEXT:
                 return new ServerText(items[1]);
-            case NameAccepted.MESSAGE_NAME:
+            case NAME_ACCEPTED:
                 return new NameAccepted(items[1]);
-            case NameRequest.MESSAGE_NAME:
+            case NAME_REQUEST:
                 return new NameRequest();
-            case NameSent.MESSAGE_NAME:
+            case NAME_SENT:
                 return new NameSent(items[1]);
-            case Disconnect.MESSAGE_NAME:
+            case DISCONNECT:
                 return new Disconnect();
             default:
                 assert false : "You forgot to add some case!";
@@ -73,11 +77,17 @@ abstract public class Message {
         return null;
     }
 
+    private Type type;
     protected ArrayList<String> fields;
 
-    Message(String messageName) {
+    Message(Type type) {
+        this.type = type;
         fields = new ArrayList<>();
-        fields.add(messageName);
+        fields.add(type.toString());
+    }
+
+    public Type getType() {
+        return type;
     }
 
     public byte[] getBytes() {
@@ -89,19 +99,5 @@ abstract public class Message {
 
     public String getText() {
         return null;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj == null || getClass() != obj.getClass()) {
-            return false;
-        }
-        Message objMessage = (Message) obj;
-        return fields.equals(objMessage.fields);
-    }
-
-    @Override
-    public int hashCode() {
-        return fields.hashCode();
     }
 }

@@ -1,11 +1,8 @@
 package nmayorov.message;
 
 public class UserText extends Message {
-    static final String MESSAGE_NAME = "USER_TEXT";
-    static final Integer FIELD_COUNT = 2;
-
     public UserText(String name, String text) {
-        super(MESSAGE_NAME);
+        super(Type.USER_TEXT);
         fields.add(name);
         fields.add(text);
     }

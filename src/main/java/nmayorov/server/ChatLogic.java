@@ -7,6 +7,7 @@ import nmayorov.command.List;
 import nmayorov.command.Name;
 import nmayorov.message.Disconnect;
 import nmayorov.message.Message;
+import nmayorov.message.MessageHandlerFactory;
 import nmayorov.message.NameAccepted;
 import nmayorov.message.NameRequest;
 import nmayorov.message.NameSent;
@@ -27,6 +28,46 @@ public class ChatLogic implements ServerLogic {
     public ChatLogic() {
         connections = new HashMap<>();
         messageHistory = new CircularFifoQueue<>(HISTORY_SIZE);
+    }
+
+    @Override
+    public MessageHandlerFactory registerMessageHandlers() {
+        MessageHandlerFactory handlers = new MessageHandlerFactory();
+
+        handlers.register(Message.Type.USER_TEXT, (message, connection) -> {
+            Command command = Command.fromString(((UserText) message).getMessage());
+            if (command != null) {
+                handleCommand(connection, command);
+                return;
+            }
+
+            synchronized (messageHistory) {
+                messageHistory.add(message.getBytes());
+            }
+            broadcast(message);
+        });
+
+        handlers.register(Message.Type.NAME_SENT, (message, connection) -> {
+            String name = ((NameSent) message).getName();
+            registerNewConnection(name, connection);
+        });
+
+        return handlers;
+    }
+
+    @Override
+    public void onConnectionAccept(Connection connection) {
+        connection.send(new ServerText("Enter your name."));
+        connection.send(new NameRequest());
+    }
+
+    @Override
+    public void onConnectionClose(Connection connection) {
+        if (connections.containsKey(connection.name)) {
+            connections.remove(connection.name);
+            broadcast(new ServerText(connection.name + " left the chat."));
+            LOGGER.info(String.format("User %s disconnected, %d left", connection.name, connections.size()));
+        }
     }
 
     private void broadcast(Message message) {
@@ -77,44 +118,6 @@ public class ChatLogic implements ServerLogic {
             }
             broadcast(new ServerText(String.format("%s is now %s.", oldName, newName)));
             LOGGER.info(String.format("User %s is renamed to %s", oldName, newName));
-        }
-    }
-
-    @Override
-    public void onConnectionAccept(Connection connection) {
-        connection.send(new ServerText("Enter your name."));
-        connection.send(new NameRequest());
-    }
-
-    @Override
-    public void onConnectionClose(Connection connection) {
-        if (connections.containsKey(connection.name)) {
-            connections.remove(connection.name);
-            broadcast(new ServerText(connection.name + " left the chat."));
-            LOGGER.info(String.format("User %s disconnected, %d left", connection.name, connections.size()));
-        }
-    }
-
-    @Override
-    public void onMessageReceive(Connection connection, Message message) {
-        switch (message.getClass().getSimpleName()) {
-            case "UserText": {
-                Command command = Command.fromString(((UserText) message).getMessage());
-                if (command != null) {
-                    handleCommand(connection, command);
-                    break;
-                }
-                synchronized (messageHistory) {
-                    messageHistory.add(message.getBytes());
-                }
-                broadcast(message);
-                break;
-            }
-            case "NameSent": {
-                String name = ((NameSent) message).getName();
-                registerNewConnection(name, connection);
-                break;
-            }
         }
     }
 

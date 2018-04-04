@@ -1,11 +1,14 @@
 package nmayorov.server;
 
 import nmayorov.message.Message;
+import nmayorov.message.MessageHandler;
+import nmayorov.message.MessageHandlerFactory;
 
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.logging.Logger;
@@ -14,11 +17,15 @@ class ConnectionProcessor implements Runnable {
     private static final Logger LOGGER = Logger.getLogger(ConnectionProcessor.class.getName());
 
     private ServerLogic serverLogic;
+    private MessageHandlerFactory handlerFactory;
     private Selector selector;
     private Queue<SocketChannel> inboundConnections;
 
-    ConnectionProcessor(ServerLogic serverLogic, Selector selector, Queue<SocketChannel> inboundConnections) {
+    ConnectionProcessor(ServerLogic serverLogic, MessageHandlerFactory messageHandlerFactory,
+                        Selector selector, Queue<SocketChannel>
+            inboundConnections) {
         this.serverLogic = serverLogic;
+        this.handlerFactory = messageHandlerFactory;
         this.selector = selector;
         this.inboundConnections = inboundConnections;
     }
@@ -109,7 +116,8 @@ class ConnectionProcessor implements Runnable {
 
         Message message = Message.getNext(connection.getReadBuffer());
         while (message != null) {
-            serverLogic.onMessageReceive(connection, message);
+            MessageHandler messageHandler = handlerFactory.get(message.getType());
+            messageHandler.execute(message, connection);
             message = Message.getNext(connection.getReadBuffer());
         }
 
