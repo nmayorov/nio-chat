@@ -27,7 +27,7 @@ public class Client implements Runnable {
     private volatile boolean acceptInput;
     private Thread inputThread;
 
-    private boolean run;
+    private volatile boolean run;
 
     MessageHandlerFactory handlers;
 
@@ -161,5 +161,9 @@ public class Client implements Runnable {
         }
         displaySystem.displayText("Disconnected from server. Input anything to exit.");
         stopToAcceptInput();
+    }
+
+    public void stop() {
+        run = false;
     }
 }
