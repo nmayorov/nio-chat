@@ -1,11 +1,12 @@
 package nmayorov.app;
 
 import nmayorov.client.Client;
-import nmayorov.client.ConsoleDisplay;
+import nmayorov.client.NoDisplay;
 import nmayorov.client.SpamBot;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 
 public class StartLoadTest {
     private static final int PORT = 5000;
@@ -18,11 +19,20 @@ public class StartLoadTest {
         } else {
             botCount = DEFAULT_BOT_COUNT;
         }
+
+        ArrayList<Client> clients = new ArrayList<>();
         for (int i = 0; i < botCount; ++i) {
-            Client c = new Client(new SpamBot(), new ConsoleDisplay());
-            c.connect(new InetSocketAddress(PORT));
-            Thread t = new Thread(c);
+            Client client = new Client(new SpamBot(), new NoDisplay());
+            clients.add(client);
+            client.connect(new InetSocketAddress(PORT));
+            Thread t = new Thread(client);
             t.start();
         }
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            for (Client client : clients) {
+                client.stop();
+            }
+        }));
     }
 }
