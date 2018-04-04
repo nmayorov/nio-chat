@@ -1,6 +1,8 @@
 package nmayorov.server;
 
 import nmayorov.command.Command;
+import nmayorov.command.CommandHandler;
+import nmayorov.command.CommandHandlerFactory;
 import nmayorov.command.Exit;
 import nmayorov.command.Help;
 import nmayorov.command.List;
@@ -24,10 +26,55 @@ public class ChatLogic implements ServerLogic {
 
     private final HashMap<String, Connection> connections;
     private final CircularFifoQueue<byte[]> messageHistory;
+    private final CommandHandlerFactory commands;
 
     public ChatLogic() {
         connections = new HashMap<>();
         messageHistory = new CircularFifoQueue<>(HISTORY_SIZE);
+        commands = registerCommands();
+    }
+
+    private CommandHandlerFactory registerCommands() {
+        CommandHandlerFactory commands = new CommandHandlerFactory();
+
+        commands.register(Command.Type.EXIT, (command, connection) -> {
+            connection.send(new Disconnect());
+            connection.requestClose();
+        });
+
+        commands.register(Command.Type.HELP, (command, connection) -> {
+            String[] lines = {
+                "Available commands:",
+                Help.DESCRIPTION,
+                Name.DESCRIPTION,
+                List.DESCRIPTION,
+                Exit.DESCRIPTION
+            };
+            String message = String.join("\n", lines);
+            connection.send(new ServerText(message));
+        });
+
+        commands.register(Command.Type.LIST, (command, connection) -> {
+            StringBuilder sb;
+            synchronized (connections) {
+                sb = new StringBuilder(String.format("Currently %d users connected:", connections.size()));
+                for (String user : connections.keySet()) {
+                    sb.append('\n');
+                    sb.append(user);
+                }
+            }
+            connection.send(new ServerText(sb.toString()));
+        });
+
+        commands.register(Command.Type.NAME, (command, connection) -> {
+            renameConnection(((Name) command).getName(), connection);
+        });
+
+        commands.register(Command.Type.UNKNOWN_COMMAND, (command, connection) -> {
+            connection.send(new ServerText("Unknown command."));
+        });
+
+        return commands;
     }
 
     @Override
@@ -37,7 +84,10 @@ public class ChatLogic implements ServerLogic {
         handlers.register(Message.Type.USER_TEXT, (message, connection) -> {
             Command command = Command.fromString(((UserText) message).getMessage());
             if (command != null) {
-                handleCommand(connection, command);
+                CommandHandler handler = commands.get(command.getType());
+                if (handler != null) {
+                    handler.execute(command, connection);
+                }
                 return;
             }
 
@@ -118,47 +168,6 @@ public class ChatLogic implements ServerLogic {
             }
             broadcast(new ServerText(String.format("%s is now %s.", oldName, newName)));
             LOGGER.info(String.format("User %s is renamed to %s", oldName, newName));
-        }
-    }
-
-    private void handleCommand(Connection connection, Command command) {
-        switch (command.getClass().getSimpleName()) {
-            case "Exit": {
-                connection.send(new Disconnect());
-                connection.requestClose();
-                break;
-            }
-            case "Help": {
-                String[] lines = {
-                    "Available commands:",
-                    Help.DESCRIPTION,
-                    Name.DESCRIPTION,
-                    List.DESCRIPTION,
-                    Exit.DESCRIPTION
-                };
-                String message = String.join("\n", lines);
-                connection.send(new ServerText(message));
-                break;
-            }
-            case "List": {
-                StringBuilder sb;
-                synchronized (connections) {
-                    sb = new StringBuilder(String.format("Currently %d users connected:", connections.size()));
-                    for (String user : connections.keySet()) {
-                        sb.append('\n');
-                        sb.append(user);
-                    }
-                }
-                connection.send(new ServerText(sb.toString()));
-                break;
-            }
-            case "Name": {
-                renameConnection(((Name) command).getName(), connection);
-                break;
-            }
-            case "UnknownCommand": {
-                connection.send(new ServerText("Unknown command."));
-            }
         }
     }
 }
