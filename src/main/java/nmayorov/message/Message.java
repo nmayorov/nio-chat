@@ -100,4 +100,18 @@ abstract public class Message {
     public String getText() {
         return null;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        Message objMessage = (Message) obj;
+        return fields.equals(objMessage.fields);
+    }
+
+    @Override
+    public int hashCode() {
+        return fields.hashCode();
+    }
 }
