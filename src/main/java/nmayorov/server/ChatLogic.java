@@ -111,7 +111,7 @@ public class ChatLogic implements ServerLogic {
 
     @Override
     public void onConnectionClose(Connection connection) {
-        if (connections.containsKey(connection.name)) {
+        if (connection.name != null && connections.containsKey(connection.name)) {
             connections.remove(connection.name);
             broadcast(new ServerText(connection.name + " left the chat."));
             LOGGER.info(String.format("User %s disconnected, %d left", connection.name, connections.size()));
