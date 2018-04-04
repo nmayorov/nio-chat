@@ -1,5 +1,7 @@
 package nmayorov.client;
 
+import nmayorov.message.MessageHandler;
+import nmayorov.message.MessageHandlerFactory;
 import nmayorov.server.Connection;
 import nmayorov.message.NameAccepted;
 import nmayorov.message.NameSent;
@@ -26,6 +28,8 @@ public class Client implements Runnable {
     private Thread inputThread;
 
     private boolean run;
+
+    MessageHandlerFactory handlers;
 
     class InputLoop implements Runnable {
         private final Client client;
@@ -69,6 +73,26 @@ public class Client implements Runnable {
         this.inputSystem = inputSystem;
         this.displaySystem = displaySystem;
         this.inputThread = new Thread(new InputLoop(this));
+        registerHandlers();
+    }
+
+    private void registerHandlers() {
+        handlers = new MessageHandlerFactory();
+
+        handlers.register(Message.Type.NAME_REQUEST, (message, connection) -> {
+            String name = inputSystem.readName();
+            connection.send(new NameSent(name));
+        });
+
+        handlers.register(Message.Type.NAME_ACCEPTED, (message, connection) -> {
+            String name = ((NameAccepted) message).getName();
+            synchronized (connection) {
+                connection.name = name;
+            }
+            startToAcceptInput();
+        });
+
+        handlers.register(Message.Type.DISCONNECT, (message, connection) -> run = false);
     }
 
     public void connect(InetSocketAddress address) throws IOException {
@@ -78,27 +102,6 @@ public class Client implements Runnable {
         selector = Selector.open();
         connection.channel.configureBlocking(false);
         connection.channel.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-    }
-
-    private void handleMessage(Message message) {
-        switch (message.getClass().getSimpleName()) {
-            case "NameRequest": {
-                String name = inputSystem.readName();
-                connection.send(new NameSent(name));
-                break;
-            }
-            case "NameAccepted": {
-                String name = ((NameAccepted) message).getName();
-                synchronized (connection) {
-                    connection.name = name;
-                }
-                startToAcceptInput();
-                break;
-            }
-            case "Disconnect": {
-                run = false;
-            }
-        }
     }
 
     public void run() {
@@ -137,7 +140,10 @@ public class Client implements Runnable {
                     Message message = Message.getNext(connection.getReadBuffer());
                     while (message != null) {
                         displaySystem.displayMessage(message);
-                        handleMessage(message);
+                        MessageHandler handler = handlers.get(message.getType());
+                        if (handler != null) {
+                            handler.execute(message, connection);
+                        }
                         message = Message.getNext(connection.getReadBuffer());
                     }
                 }

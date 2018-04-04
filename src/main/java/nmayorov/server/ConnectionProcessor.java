@@ -117,7 +117,9 @@ class ConnectionProcessor implements Runnable {
         Message message = Message.getNext(connection.getReadBuffer());
         while (message != null) {
             MessageHandler messageHandler = handlerFactory.get(message.getType());
-            messageHandler.execute(message, connection);
+            if (messageHandler != null) {
+                messageHandler.execute(message, connection);
+            }
             message = Message.getNext(connection.getReadBuffer());
         }
 
