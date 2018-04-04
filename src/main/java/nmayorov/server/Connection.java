@@ -5,14 +5,14 @@ import nmayorov.message.Message;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayDeque;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 
 public class Connection {
     private static final int INITIAL_READ_BUFFER_CAPACITY = 128;
     private static final int RESIZE_FACTOR = 2;
 
-    private ArrayDeque<ByteBuffer> writeBuffers;
+    private final ConcurrentLinkedDeque<ByteBuffer> writeBuffers;
     private ByteBuffer readBuffer;
 
     public SocketChannel channel;
@@ -23,7 +23,7 @@ public class Connection {
     public Connection(SocketChannel channel) {
         this.channel = channel;
         name = null;
-        writeBuffers = new ArrayDeque<>();
+        writeBuffers = new ConcurrentLinkedDeque<>();
         readBuffer = ByteBuffer.allocate(INITIAL_READ_BUFFER_CAPACITY);
         closeRequested = false;
     }
