@@ -17,19 +17,19 @@ import nmayorov.message.ServerText;
 import nmayorov.message.UserText;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 public class ChatLogic implements ServerLogic {
     private static final Logger LOGGER = Logger.getLogger(ChatLogic.class.getName());
     private static final int HISTORY_SIZE = 100;
 
-    private final HashMap<String, Connection> connections;
+    private final ConcurrentHashMap<String, Connection> connections;
     private final CircularFifoQueue<byte[]> messageHistory;
     private final CommandHandlerFactory commands;
 
     public ChatLogic() {
-        connections = new HashMap<>();
+        connections = new ConcurrentHashMap<>();
         messageHistory = new CircularFifoQueue<>(HISTORY_SIZE);
         commands = registerCommands();
     }
@@ -56,12 +56,10 @@ public class ChatLogic implements ServerLogic {
 
         commands.register(Command.Type.LIST, (command, connection) -> {
             StringBuilder sb;
-            synchronized (connections) {
-                sb = new StringBuilder(String.format("Currently %d users connected:", connections.size()));
-                for (String user : connections.keySet()) {
-                    sb.append('\n');
-                    sb.append(user);
-                }
+            sb = new StringBuilder(String.format("Currently %d users connected:", connections.size()));
+            for (String user : connections.keySet()) {
+                sb.append('\n');
+                sb.append(user);
             }
             connection.send(new ServerText(sb.toString()));
         });
@@ -122,10 +120,8 @@ public class ChatLogic implements ServerLogic {
 
     private void broadcast(Message message) {
         byte[] bytes = message.getBytes();
-        synchronized (connections) {
-            for (Connection connection : connections.values()) {
-                connection.send(bytes);
-            }
+        for (Connection connection : connections.values()) {
+            connection.send(bytes);
         }
     }
 
@@ -140,9 +136,7 @@ public class ChatLogic implements ServerLogic {
             connection.send(new NameAccepted(name));
             connection.name = name;
             connection.send(new ServerText("Welcome to the chat! Type \\help for help."));
-            synchronized (connections) {
-                connections.put(name, connection);
-            }
+            connections.put(name, connection);
             broadcast(new ServerText(name + " joined the chat!"));
             synchronized (messageHistory) {
                 for (byte[] message : messageHistory) {
@@ -161,11 +155,9 @@ public class ChatLogic implements ServerLogic {
         } else {
             connection.send(new NameAccepted(newName));
             String oldName = connection.name;
-            synchronized (connections) {
-                connections.remove(connection.name);
-                connection.name = newName;
-                connections.put(connection.name, connection);
-            }
+            connections.remove(connection.name);
+            connection.name = newName;
+            connections.put(connection.name, connection);
             broadcast(new ServerText(String.format("%s is now %s.", oldName, newName)));
             LOGGER.info(String.format("User %s is renamed to %s", oldName, newName));
         }
