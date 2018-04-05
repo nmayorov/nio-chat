@@ -7,7 +7,7 @@ import java.nio.channels.SocketChannel;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Logger;
 
-public class ConnectionAcceptor implements Runnable {
+class ConnectionAcceptor implements Runnable {
     private static final Logger LOGGER = Logger.getLogger(ConnectionProcessor.class.getName());
 
     private ServerSocketChannel serverChannel;
