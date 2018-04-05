@@ -6,6 +6,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 class ConnectionProcessor implements Runnable {
@@ -32,7 +33,7 @@ class ConnectionProcessor implements Runnable {
                                             SelectionKey.OP_READ | SelectionKey.OP_WRITE, connection);
                 serverLogic.onConnectionAccept(connection);
             } catch (IOException e) {
-                LOGGER.warning("Error registering connection");
+                LOGGER.log(Level.WARNING, "Error registering connection", e);
             }
             channel = inboundConnections.poll();
         }
@@ -47,7 +48,8 @@ class ConnectionProcessor implements Runnable {
             try {
                 selected = selector.select();
             } catch (IOException e) {
-                LOGGER.severe("Error selecting IO channels. The server functionality might be broken.");
+                LOGGER.log(Level.SEVERE,
+                           "Error selecting IO channels. The server functionality might be broken", e);
                 selected = 0;
             }
 
@@ -74,7 +76,7 @@ class ConnectionProcessor implements Runnable {
             connection.channel.close();
             serverLogic.onConnectionClose(connection);
         } catch (IOException e) {
-            LOGGER.warning("Error closing connection.");
+            LOGGER.log(Level.WARNING,"Error closing connection", e);
         }
     }
 

@@ -5,6 +5,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 class ConnectionAcceptor implements Runnable {
@@ -30,7 +31,8 @@ class ConnectionAcceptor implements Runnable {
                 try {
                     inboundSockets.put(channel);
                 } catch (InterruptedException e) {
-                    LOGGER.warning("Interrupted while trying to put inbound connection. Connection refused");
+                    LOGGER.log(Level.WARNING,
+                               "Interrupted while trying to put inbound connection. Connection refused", e);
                     channel.close();
                     continue;
                 }
@@ -38,7 +40,7 @@ class ConnectionAcceptor implements Runnable {
                     selector.wakeup();
                 }
             } catch (IOException e) {
-                LOGGER.warning("Error accepting connection");
+                LOGGER.log(Level.WARNING, "Error accepting connection", e);
             }
         }
     }
