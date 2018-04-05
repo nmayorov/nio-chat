@@ -1,7 +1,5 @@
 package nmayorov.server;
 
-import nmayorov.message.Message;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
@@ -29,9 +27,6 @@ public class Connection {
 
     public void send(byte[] bytes) {
         writeBuffers.add(ByteBuffer.wrap(bytes));
-    }
-    public void send(Message message) {
-        send(message.getBytes());
     }
 
     public boolean nothingToWrite() {

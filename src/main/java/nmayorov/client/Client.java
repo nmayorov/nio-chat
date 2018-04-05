@@ -42,7 +42,7 @@ public class Client implements Runnable {
             while (acceptInput) {
                 String input = inputSystem.readChatInput();
                 synchronized (connection) {
-                    connection.send(new UserText(connection.name, input));
+                    connection.send(new UserText(connection.name, input).getBytes());
                 }
                 synchronized (client) {
                     client.notify();
@@ -81,7 +81,7 @@ public class Client implements Runnable {
 
         handlers.register(Message.Type.NAME_REQUEST, (message, connection) -> {
             String name = inputSystem.readName();
-            connection.send(new NameSent(name));
+            connection.send(new NameSent(name).getBytes());
         });
 
         handlers.register(Message.Type.NAME_ACCEPTED, (message, connection) -> {

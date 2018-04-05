@@ -41,7 +41,7 @@ public class ChatLogic implements ServerLogic {
         CommandHandlerFactory commands = new CommandHandlerFactory();
 
         commands.register(Command.Type.EXIT, (command, connection) -> {
-            connection.send(new Disconnect());
+            connection.send(new Disconnect().getBytes());
             connection.requestClose();
         });
 
@@ -54,7 +54,7 @@ public class ChatLogic implements ServerLogic {
                 Exit.DESCRIPTION
             };
             String message = String.join("\n", lines);
-            connection.send(new ServerText(message));
+            connection.send(new ServerText(message).getBytes());
         });
 
         commands.register(Command.Type.LIST, (command, connection) -> {
@@ -64,7 +64,7 @@ public class ChatLogic implements ServerLogic {
                 sb.append('\n');
                 sb.append(user);
             }
-            connection.send(new ServerText(sb.toString()));
+            connection.send(new ServerText(sb.toString()).getBytes());
         });
 
         commands.register(Command.Type.NAME, (command, connection) -> {
@@ -72,7 +72,7 @@ public class ChatLogic implements ServerLogic {
         });
 
         commands.register(Command.Type.UNKNOWN_COMMAND, (command, connection) -> {
-            connection.send(new ServerText("Unknown command."));
+            connection.send(new ServerText("Unknown command.").getBytes());
         });
 
         return commands;
@@ -107,8 +107,8 @@ public class ChatLogic implements ServerLogic {
 
     @Override
     public void onConnectionAccept(Connection connection) {
-        connection.send(new ServerText("Enter your name."));
-        connection.send(new NameRequest());
+        connection.send(new ServerText("Enter your name.").getBytes());
+        connection.send(new NameRequest().getBytes());
     }
 
     @Override
@@ -141,15 +141,15 @@ public class ChatLogic implements ServerLogic {
 
     private void registerNewConnection(String name, Connection connection) {
         if (name.isEmpty()) {
-            connection.send(new ServerText("The name must be non-empty."));
-            connection.send(new NameRequest());
+            connection.send(new ServerText("The name must be non-empty.").getBytes());
+            connection.send(new NameRequest().getBytes());
         } else if (connections.containsKey(name)) {
-            connection.send(new ServerText("The name is already occupied."));
-            connection.send(new NameRequest());
+            connection.send(new ServerText("The name is already occupied.").getBytes());
+            connection.send(new NameRequest().getBytes());
         } else {
-            connection.send(new NameAccepted(name));
+            connection.send(new NameAccepted(name).getBytes());
             connection.name = name;
-            connection.send(new ServerText("Welcome to the chat! Type \\help for help."));
+            connection.send(new ServerText("Welcome to the chat! Type \\help for help.").getBytes());
             connections.put(name, connection);
             broadcast(new ServerText(name + " joined the chat!"));
             synchronized (messageHistory) {
@@ -163,11 +163,11 @@ public class ChatLogic implements ServerLogic {
 
     private void renameConnection(String newName, Connection connection) {
         if (newName.isEmpty()) {
-            connection.send(new ServerText("The name must be non-empty."));
+            connection.send(new ServerText("The name must be non-empty.").getBytes());
         } else if (connections.containsKey(newName)) {
-            connection.send(new ServerText("The name is already occupied."));
+            connection.send(new ServerText("The name is already occupied.").getBytes());
         } else {
-            connection.send(new NameAccepted(newName));
+            connection.send(new NameAccepted(newName).getBytes());
             String oldName = connection.name;
             connections.remove(connection.name);
             connection.name = newName;
