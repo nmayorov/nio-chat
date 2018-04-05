@@ -9,6 +9,7 @@ import nmayorov.command.List;
 import nmayorov.command.Name;
 import nmayorov.message.Disconnect;
 import nmayorov.message.Message;
+import nmayorov.message.MessageHandler;
 import nmayorov.message.MessageHandlerFactory;
 import nmayorov.message.NameAccepted;
 import nmayorov.message.NameRequest;
@@ -27,11 +28,13 @@ public class ChatLogic implements ServerLogic {
     private final ConcurrentHashMap<String, Connection> connections;
     private final CircularFifoQueue<byte[]> messageHistory;
     private final CommandHandlerFactory commands;
+    private final MessageHandlerFactory messageHandlers;
 
     public ChatLogic() {
         connections = new ConcurrentHashMap<>();
         messageHistory = new CircularFifoQueue<>(HISTORY_SIZE);
         commands = registerCommands();
+        messageHandlers = registerMessages();
     }
 
     private CommandHandlerFactory registerCommands() {
@@ -75,8 +78,7 @@ public class ChatLogic implements ServerLogic {
         return commands;
     }
 
-    @Override
-    public MessageHandlerFactory registerMessageHandlers() {
+    private MessageHandlerFactory registerMessages() {
         MessageHandlerFactory handlers = new MessageHandlerFactory();
 
         handlers.register(Message.Type.USER_TEXT, (message, connection) -> {
@@ -115,6 +117,18 @@ public class ChatLogic implements ServerLogic {
             connections.remove(connection.name);
             broadcast(new ServerText(connection.name + " left the chat."));
             LOGGER.info(String.format("User %s disconnected, %d left", connection.name, connections.size()));
+        }
+    }
+
+    @Override
+    public void onDataReceive(Connection connection) {
+        Message message = Message.getNext(connection.getReadBuffer());
+        while (message != null) {
+            MessageHandler messageHandler = messageHandlers.get(message.getType());
+            if (messageHandler != null) {
+                messageHandler.execute(message, connection);
+            }
+            message = Message.getNext(connection.getReadBuffer());
         }
     }
 

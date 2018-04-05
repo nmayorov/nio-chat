@@ -7,7 +7,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
-
 public class Connection {
     private static final int INITIAL_READ_BUFFER_CAPACITY = 128;
     private static final int RESIZE_FACTOR = 2;

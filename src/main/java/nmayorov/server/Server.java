@@ -1,8 +1,5 @@
 package nmayorov.server;
 
-import nmayorov.message.MessageHandler;
-import nmayorov.message.MessageHandlerFactory;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.Selector;
@@ -43,10 +40,9 @@ public class Server {
         Thread acceptingThread = new Thread(new ConnectionAcceptor(serverChannel, selectors, inboundConnections));
         acceptingThread.start();
 
-        MessageHandlerFactory handlers = serverLogic.registerMessageHandlers();
         for (int i = 0; i < numThreads; ++i) {
             Thread processingThread = new Thread(
-                    new ConnectionProcessor(serverLogic, handlers, selectors[i], inboundConnections));
+                    new ConnectionProcessor(serverLogic, selectors[i], inboundConnections));
             processingThread.start();
         }
     }
