@@ -8,9 +8,8 @@ import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Logger;
 
 class ConnectionProcessor implements Runnable {
@@ -19,11 +18,10 @@ class ConnectionProcessor implements Runnable {
     private ServerLogic serverLogic;
     private MessageHandlerFactory handlerFactory;
     private Selector selector;
-    private Queue<SocketChannel> inboundConnections;
+    private ArrayBlockingQueue<SocketChannel> inboundConnections;
 
     ConnectionProcessor(ServerLogic serverLogic, MessageHandlerFactory messageHandlerFactory,
-                        Selector selector, Queue<SocketChannel>
-            inboundConnections) {
+                        Selector selector, ArrayBlockingQueue<SocketChannel> inboundConnections) {
         this.serverLogic = serverLogic;
         this.handlerFactory = messageHandlerFactory;
         this.selector = selector;
