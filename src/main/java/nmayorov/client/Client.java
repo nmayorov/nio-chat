@@ -13,6 +13,7 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.util.Iterator;
 import java.util.Set;
 
 public class Client implements Runnable {
@@ -29,7 +30,7 @@ public class Client implements Runnable {
 
     private volatile boolean run;
 
-    MessageHandlerFactory handlers;
+    private MessageHandlerFactory messageHandlers;
 
     class InputLoop implements Runnable {
         private final Client client;
@@ -73,18 +74,18 @@ public class Client implements Runnable {
         this.inputSystem = inputSystem;
         this.displaySystem = displaySystem;
         this.inputThread = new Thread(new InputLoop(this));
-        registerHandlers();
+        this.messageHandlers = registerMessages();
     }
 
-    private void registerHandlers() {
-        handlers = new MessageHandlerFactory();
+    private MessageHandlerFactory registerMessages() {
+        MessageHandlerFactory messageHandlers = new MessageHandlerFactory();
 
-        handlers.register(Message.Type.NAME_REQUEST, (message, connection) -> {
+        messageHandlers.register(Message.Type.NAME_REQUEST, (message, connection) -> {
             String name = inputSystem.readName();
             connection.send(new NameSent(name).getBytes());
         });
 
-        handlers.register(Message.Type.NAME_ACCEPTED, (message, connection) -> {
+        messageHandlers.register(Message.Type.NAME_ACCEPTED, (message, connection) -> {
             String name = ((NameAccepted) message).getName();
             synchronized (connection) {
                 connection.name = name;
@@ -92,7 +93,9 @@ public class Client implements Runnable {
             startToAcceptInput();
         });
 
-        handlers.register(Message.Type.DISCONNECT, (message, connection) -> run = false);
+        messageHandlers.register(Message.Type.DISCONNECT, (message, connection) -> stop());
+
+        return messageHandlers;
     }
 
     public void connect(InetSocketAddress address) throws IOException {
@@ -126,10 +129,11 @@ public class Client implements Runnable {
             }
 
             Set<SelectionKey> selectedKeys = selector.selectedKeys();
-            for (SelectionKey key : selectedKeys) {
-                selectedKeys.remove(key);
+            Iterator<SelectionKey> iterator = selectedKeys.iterator();
+            while (iterator.hasNext()) {
+                SelectionKey key = iterator.next();
+                iterator.remove();
                 if (key.isValid() && key.isReadable()) {
-
                     try {
                         connection.read();
                     } catch (IOException e) {
@@ -140,7 +144,7 @@ public class Client implements Runnable {
                     Message message = Message.getNext(connection.getReadBuffer());
                     while (message != null) {
                         displaySystem.displayMessage(message);
-                        MessageHandler handler = handlers.get(message.getType());
+                        MessageHandler handler = messageHandlers.get(message.getType());
                         if (handler != null) {
                             handler.execute(message, connection);
                         }
