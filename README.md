@@ -3,36 +3,19 @@ Chat server and client in Java using non-blocking sockets.
 Code organization
 =================
 Server-client connection is implementing using non-blocking TCP sockets from `java.nio`: `ServerSocketChannel` and `SocketChannel`.
-It allows the server to handle multiple connections in a single thread, which in theory should be an efficient 
+It allows the server to handle many connections in a single thread, which in theory should be an efficient 
 approach. The class `Connection` implements IO logic for non-blocking sockets.
 
-The logic is organized as `Server` and `Client` passing `Message` objects between each other. The `Message` class
-represents a certain kind of message (text message from a user, text message from the server, authorization request, etc.), 
-they are collected in `message` sub-package. 
+The class `Server` implements a server IO loop. It runs `ConnectionAcceptor` in a single thread and 
+`ConnectionProcessor` in several threads (configurable and equal to the number of CPU cores by default). Server logic
+ is injected by an object implementing `ServerLogic` interface. 
 
-The `Message` has the following methods:
-1. `getBytes()` serializes a message to a byte array so it can be transferred over a socket.
-2. `getText()` provides some human-readable representation for logging or simple output.
-3. `handleServerReceive(Server server, Connection connection)` and`handleClientReceive(Client client, Connection 
-connection)` implement server and client logic when receiving this message.
-
-The last two methods are designed to allow introducing new messages and corresponding logic without the need to 
-modify `Server` and `Client` code, assuming that `Server` and `Client` have a stable and sufficient API. 
-Obviously this is a somewhat controversial design, because server logic is spread across `Server` and `Message` 
-classes and `Server` needs to provide some sort of "API" to work with messages (the same goes for the client). 
-However, an alternative design when everything is processed inside `Server` and `Client` seems to violate the 
-open/closed principle and forces to write code with switches and reflection to handle different messages. Maybe there 
-are better approaches I couldn't come up with.
-
-`Message` objects can be read from byte buffers using `Message.getNext(ByteBuffer buffer)` static method. There is a 
-single `getBytes` implementation and a single `getNext` implementation, because a co-existence of different 
-serialization/deserialization protocols seems unnecessary.
-
-The subpackage `command` contains handlers of special user text messages, which should be considered as "commands". 
-These are very similar to messages, however they are separated from them because I figured that the server should be 
-responsible for distinguishing commands in user text messages and thus commands (in this sense) can't be implemented
-as messages. In other words, a command is something that can be contained in `ClientText` message.
-
+Chat server logic is implemented in `ChatLogic`. It uses `Message` objects to represent different kinds of messages. 
+The method `getBytes()` does serialization of message to bytes so it can be transferred over a socket. The 
+messages are read and constructed from byte buffers using `nextMessage(ByteBuffer buffer)` static method. Also there 
+is `Command` class which represen commands to the server passed from a user from a chat message. It is organized in a
+ similar manner as `Message` objects.
+    
 `Client` is configurable with `InputSystem` and `DisplaySystem`, which in theory should allow to use `Client` in 
 different GUI settings or use it for a chat bot.
 
