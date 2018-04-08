@@ -8,9 +8,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 
-public class StartLoadTest {
+class StartLoadTest {
     private static final int PORT = 5000;
-    private static int DEFAULT_BOT_COUNT = 100;
+    private static final int DEFAULT_BOT_COUNT = 100;
 
     public static void main(String[] args) throws IOException {
         int botCount;

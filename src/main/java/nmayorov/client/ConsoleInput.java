@@ -3,7 +3,7 @@ package nmayorov.client;
 import java.util.Scanner;
 
 public class ConsoleInput implements InputSystem {
-    private Scanner scanner;
+    private final Scanner scanner;
 
     public ConsoleInput() {
         scanner = new Scanner(System.in);

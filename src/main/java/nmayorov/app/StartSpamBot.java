@@ -6,7 +6,7 @@ import nmayorov.client.SpamBot;
 
 import java.net.InetSocketAddress;
 
-public class StartSpamBot {
+class StartSpamBot {
     private static final int PORT = 5000;
 
     static public void main(String[] args) throws Exception {

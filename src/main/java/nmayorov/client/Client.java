@@ -21,18 +21,18 @@ import java.util.Set;
 public class Client implements Runnable {
     private static final int PAUSE_BETWEEN_IO_CYCLES_MS = 100;
 
-    private DisplaySystem displaySystem;
-    private InputSystem inputSystem;
+    private final DisplaySystem displaySystem;
+    private final InputSystem inputSystem;
 
     private NioSocketConnection connection;
     private Selector selector;
 
     private volatile boolean acceptInput;
-    private Thread inputThread;
+    private final Thread inputThread;
 
     private volatile boolean run;
 
-    private MessageHandlerFactory messageHandlers;
+    private final MessageHandlerFactory messageHandlers;
 
     class InputLoop implements Runnable {
         private final Client client;

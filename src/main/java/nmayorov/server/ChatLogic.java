@@ -70,13 +70,15 @@ public class ChatLogic implements ServerLogic {
             connection.write(new ServerText(sb.toString()).getBytes());
         });
 
-        commands.register(Command.Type.NAME, (command, connection) -> {
-            renameConnection(((Name) command).getName(), connection);
-        });
+        commands.register(
+            Command.Type.NAME,
+            (command, connection) -> renameConnection(((Name) command).getName(), connection)
+        );
 
-        commands.register(Command.Type.UNKNOWN_COMMAND, (command, connection) -> {
-            connection.write(new ServerText("Unknown command.").getBytes());
-        });
+        commands.register(
+            Command.Type.UNKNOWN_COMMAND,
+            (command, connection) -> connection.write(new ServerText("Unknown command.").getBytes())
+        );
 
         return commands;
     }

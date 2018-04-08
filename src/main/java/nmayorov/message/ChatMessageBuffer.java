@@ -3,7 +3,6 @@ package nmayorov.message;
 import nmayorov.connection.MessageBuffer;
 
 import java.nio.ByteBuffer;
-import java.nio.InvalidMarkException;
 
 public class ChatMessageBuffer implements MessageBuffer {
     private static final int INITIAL_CAPACITY = 128;

@@ -10,8 +10,8 @@ abstract public class Message {
 
     public enum Type {DISCONNECT, NAME_ACCEPTED, NAME_REQUEST, NAME_SENT, SERVER_TEXT, USER_TEXT}
 
-    private Type type;
-    protected ArrayList<String> fields;
+    private final Type type;
+    final ArrayList<String> fields;
 
     Message(Type type) {
         this.type = type;

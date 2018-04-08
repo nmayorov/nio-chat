@@ -11,9 +11,9 @@ import java.util.logging.Logger;
 class ConnectionAcceptor implements Runnable {
     private static final Logger LOGGER = Logger.getLogger(ConnectionProcessor.class.getName());
 
-    private ServerSocketChannel serverChannel;
-    private Selector[] selectors;
-    private ArrayBlockingQueue<SocketChannel> inboundSockets;
+    private final ServerSocketChannel serverChannel;
+    private final Selector[] selectors;
+    private final ArrayBlockingQueue<SocketChannel> inboundSockets;
 
     ConnectionAcceptor(ServerSocketChannel serverChannel, Selector[] selectors,
                        ArrayBlockingQueue<SocketChannel> inboundSockets) {

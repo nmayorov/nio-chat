@@ -8,7 +8,7 @@ public class SpamBot implements InputSystem {
     static private final int MAX_NAME_LENGTH = 10;
     static private final int MAX_MESSAGE_LENGTH = 100;
 
-    private Random rng;
+    private final Random rng;
 
     private String randomString(int length) {
         char[] letters = new char[length];

@@ -12,7 +12,7 @@ public class NioSocketConnection extends Connection {
     private final ConcurrentLinkedDeque<ByteBuffer> writeBuffers;
     private ByteBuffer readBuffer;
 
-    public SocketChannel channel;
+    public final SocketChannel channel;
 
     public NioSocketConnection(SocketChannel channel) {
         this.channel = channel;
