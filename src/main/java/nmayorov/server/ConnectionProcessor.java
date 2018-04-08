@@ -1,5 +1,7 @@
 package nmayorov.server;
 
+import nmayorov.connection.NioSocketConnection;
+
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -26,7 +28,7 @@ class ConnectionProcessor implements Runnable {
     private void processInboundConnections() {
         SocketChannel channel = inboundConnections.poll();
         while (channel != null) {
-            Connection connection = new Connection(channel);
+            NioSocketConnection connection = new NioSocketConnection(channel);
             try {
                 connection.channel.configureBlocking(false);
                 connection.channel.register(selector,
@@ -71,7 +73,7 @@ class ConnectionProcessor implements Runnable {
         }
     }
 
-    private void closeConnection(Connection connection) {
+    private void closeConnection(NioSocketConnection connection) {
         try {
             connection.channel.close();
             serverLogic.onConnectionClose(connection);
@@ -81,9 +83,9 @@ class ConnectionProcessor implements Runnable {
     }
 
     private void handleWrite(SelectionKey key) {
-        Connection connection = (Connection) key.attachment();
+        NioSocketConnection connection = (NioSocketConnection) key.attachment();
         try {
-            connection.write();
+            connection.writeToChannel();
         } catch (IOException e) {
             closeConnection(connection);
         }
@@ -94,10 +96,10 @@ class ConnectionProcessor implements Runnable {
     }
 
     private void handleRead(SelectionKey key) {
-        Connection connection = (Connection) key.attachment();
+        NioSocketConnection connection = (NioSocketConnection) key.attachment();
         int read;
         try {
-            read = connection.read();
+            read = connection.readFromChannel();
         } catch (IOException e) {
             read = -1;
         }

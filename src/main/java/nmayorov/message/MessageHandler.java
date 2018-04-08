@@ -1,6 +1,6 @@
 package nmayorov.message;
 
-import nmayorov.server.Connection;
+import nmayorov.connection.Connection;
 
 public interface MessageHandler {
     void execute(Message message, Connection connection);

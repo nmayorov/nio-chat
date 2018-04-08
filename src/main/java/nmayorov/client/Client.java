@@ -1,8 +1,10 @@
 package nmayorov.client;
 
+import nmayorov.connection.NioSocketConnection;
+import nmayorov.message.ChatMessageBuffer;
+import nmayorov.message.MessageFactory;
 import nmayorov.message.MessageHandler;
 import nmayorov.message.MessageHandlerFactory;
-import nmayorov.server.Connection;
 import nmayorov.message.NameAccepted;
 import nmayorov.message.NameSent;
 import nmayorov.message.UserText;
@@ -22,7 +24,7 @@ public class Client implements Runnable {
     private DisplaySystem displaySystem;
     private InputSystem inputSystem;
 
-    private Connection connection;
+    private NioSocketConnection connection;
     private Selector selector;
 
     private volatile boolean acceptInput;
@@ -43,7 +45,7 @@ public class Client implements Runnable {
             while (acceptInput) {
                 String input = inputSystem.readChatInput();
                 synchronized (connection) {
-                    connection.send(new UserText(connection.name, input).getBytes());
+                    connection.write(new UserText(connection.name, input).getBytes());
                 }
                 synchronized (client) {
                     client.notify();
@@ -82,7 +84,7 @@ public class Client implements Runnable {
 
         messageHandlers.register(Message.Type.NAME_REQUEST, (message, connection) -> {
             String name = inputSystem.readName();
-            connection.send(new NameSent(name).getBytes());
+            connection.write(new NameSent(name).getBytes());
         });
 
         messageHandlers.register(Message.Type.NAME_ACCEPTED, (message, connection) -> {
@@ -99,7 +101,8 @@ public class Client implements Runnable {
     }
 
     public void connect(InetSocketAddress address) throws IOException {
-        connection = new Connection(SocketChannel.open());
+        connection = new NioSocketConnection(SocketChannel.open());
+        connection.messageBuffer = new ChatMessageBuffer();
         connection.channel.connect(address);
 
         selector = Selector.open();
@@ -135,26 +138,28 @@ public class Client implements Runnable {
                 iterator.remove();
                 if (key.isValid() && key.isReadable()) {
                     try {
-                        connection.read();
+                        connection.readFromChannel();
                     } catch (IOException e) {
                         run = false;
                         break;
                     }
 
-                    Message message = Message.getNext(connection.getReadBuffer());
-                    while (message != null) {
+                    connection.messageBuffer.put(connection.read());
+                    byte[] messageData = connection.messageBuffer.getNextMessage();
+                    while (messageData != null) {
+                        Message message = MessageFactory.createFromBytes(messageData);
                         displaySystem.displayMessage(message);
                         MessageHandler handler = messageHandlers.get(message.getType());
                         if (handler != null) {
                             handler.execute(message, connection);
                         }
-                        message = Message.getNext(connection.getReadBuffer());
+                        messageData = connection.messageBuffer.getNextMessage();
                     }
                 }
 
                 if (key.isValid() && key.isWritable()) {
                     try {
-                        connection.write();
+                        connection.writeToChannel();
                     } catch (IOException e) {
                         run = false;
                         break;

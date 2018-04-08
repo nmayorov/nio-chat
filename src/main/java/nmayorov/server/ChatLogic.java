@@ -7,8 +7,11 @@ import nmayorov.command.Exit;
 import nmayorov.command.Help;
 import nmayorov.command.List;
 import nmayorov.command.Name;
+import nmayorov.connection.Connection;
+import nmayorov.message.ChatMessageBuffer;
 import nmayorov.message.Disconnect;
 import nmayorov.message.Message;
+import nmayorov.message.MessageFactory;
 import nmayorov.message.MessageHandler;
 import nmayorov.message.MessageHandlerFactory;
 import nmayorov.message.NameAccepted;
@@ -41,7 +44,7 @@ public class ChatLogic implements ServerLogic {
         CommandHandlerFactory commands = new CommandHandlerFactory();
 
         commands.register(Command.Type.EXIT, (command, connection) -> {
-            connection.send(new Disconnect().getBytes());
+            connection.write(new Disconnect().getBytes());
             connection.requestClose();
         });
 
@@ -54,7 +57,7 @@ public class ChatLogic implements ServerLogic {
                 Exit.DESCRIPTION
             };
             String message = String.join("\n", lines);
-            connection.send(new ServerText(message).getBytes());
+            connection.write(new ServerText(message).getBytes());
         });
 
         commands.register(Command.Type.LIST, (command, connection) -> {
@@ -64,7 +67,7 @@ public class ChatLogic implements ServerLogic {
                 sb.append('\n');
                 sb.append(user);
             }
-            connection.send(new ServerText(sb.toString()).getBytes());
+            connection.write(new ServerText(sb.toString()).getBytes());
         });
 
         commands.register(Command.Type.NAME, (command, connection) -> {
@@ -72,7 +75,7 @@ public class ChatLogic implements ServerLogic {
         });
 
         commands.register(Command.Type.UNKNOWN_COMMAND, (command, connection) -> {
-            connection.send(new ServerText("Unknown command.").getBytes());
+            connection.write(new ServerText("Unknown command.").getBytes());
         });
 
         return commands;
@@ -107,13 +110,14 @@ public class ChatLogic implements ServerLogic {
 
     @Override
     public void onConnectionAccept(Connection connection) {
-        connection.send(new ServerText("Enter your name.").getBytes());
-        connection.send(new NameRequest().getBytes());
+        connection.messageBuffer = new ChatMessageBuffer();
+        connection.write(new ServerText("Enter your name.").getBytes());
+        connection.write(new NameRequest().getBytes());
     }
 
     @Override
     public void onConnectionClose(Connection connection) {
-        if (connection.name != null && connections.containsKey(connection.name)) {
+        if (connections.containsKey(connection.name)) {
             connections.remove(connection.name);
             broadcast(new ServerText(connection.name + " left the chat."));
             LOGGER.info(String.format("User %s disconnected, %d left", connection.name, connections.size()));
@@ -122,39 +126,41 @@ public class ChatLogic implements ServerLogic {
 
     @Override
     public void onDataReceive(Connection connection) {
-        Message message = Message.getNext(connection.getReadBuffer());
-        while (message != null) {
+        connection.messageBuffer.put(connection.read());
+        byte[] messageBytes = connection.messageBuffer.getNextMessage();
+        while (messageBytes != null) {
+            Message message = MessageFactory.createFromBytes(messageBytes);
             MessageHandler messageHandler = messageHandlers.get(message.getType());
             if (messageHandler != null) {
                 messageHandler.execute(message, connection);
             }
-            message = Message.getNext(connection.getReadBuffer());
+            messageBytes = connection.messageBuffer.getNextMessage();
         }
     }
 
     private void broadcast(Message message) {
         byte[] bytes = message.getBytes();
         for (Connection connection : connections.values()) {
-            connection.send(bytes);
+            connection.write(bytes);
         }
     }
 
     private void registerNewConnection(String name, Connection connection) {
         if (name.isEmpty()) {
-            connection.send(new ServerText("The name must be non-empty.").getBytes());
-            connection.send(new NameRequest().getBytes());
+            connection.write(new ServerText("The name must be non-empty.").getBytes());
+            connection.write(new NameRequest().getBytes());
         } else if (connections.containsKey(name)) {
-            connection.send(new ServerText("The name is already occupied.").getBytes());
-            connection.send(new NameRequest().getBytes());
+            connection.write(new ServerText("The name is already occupied.").getBytes());
+            connection.write(new NameRequest().getBytes());
         } else {
-            connection.send(new NameAccepted(name).getBytes());
+            connection.write(new NameAccepted(name).getBytes());
             connection.name = name;
-            connection.send(new ServerText("Welcome to the chat! Type \\help for help.").getBytes());
+            connection.write(new ServerText("Welcome to the chat! Type \\help for help.").getBytes());
             connections.put(name, connection);
             broadcast(new ServerText(name + " joined the chat!"));
             synchronized (messageHistory) {
                 for (byte[] message : messageHistory) {
-                    connection.send(message);
+                    connection.write(message);
                 }
             }
             LOGGER.info(String.format("User %d is registered as %s", connections.size(), name));
@@ -163,11 +169,11 @@ public class ChatLogic implements ServerLogic {
 
     private void renameConnection(String newName, Connection connection) {
         if (newName.isEmpty()) {
-            connection.send(new ServerText("The name must be non-empty.").getBytes());
+            connection.write(new ServerText("The name must be non-empty.").getBytes());
         } else if (connections.containsKey(newName)) {
-            connection.send(new ServerText("The name is already occupied.").getBytes());
+            connection.write(new ServerText("The name is already occupied.").getBytes());
         } else {
-            connection.send(new NameAccepted(newName).getBytes());
+            connection.write(new NameAccepted(newName).getBytes());
             String oldName = connection.name;
             connections.remove(connection.name);
             connection.name = newName;

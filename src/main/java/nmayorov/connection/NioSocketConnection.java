@@ -1,11 +1,11 @@
-package nmayorov.server;
+package nmayorov.connection;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
-public class Connection {
+public class NioSocketConnection extends Connection {
     private static final int INITIAL_READ_BUFFER_CAPACITY = 128;
     private static final int RESIZE_FACTOR = 2;
 
@@ -13,35 +13,28 @@ public class Connection {
     private ByteBuffer readBuffer;
 
     public SocketChannel channel;
-    public String name;
 
-    private boolean closeRequested = false;
-
-    public Connection(SocketChannel channel) {
+    public NioSocketConnection(SocketChannel channel) {
         this.channel = channel;
-        name = null;
         writeBuffers = new ConcurrentLinkedDeque<>();
         readBuffer = ByteBuffer.allocate(INITIAL_READ_BUFFER_CAPACITY);
-        closeRequested = false;
     }
 
-    public void send(byte[] bytes) {
-        writeBuffers.add(ByteBuffer.wrap(bytes));
+    @Override
+    public void write(byte[] src) {
+        writeBuffers.add(ByteBuffer.wrap(src));
     }
 
-    public boolean nothingToWrite() {
-        return writeBuffers.isEmpty();
+    @Override
+    public byte[] read() {
+        readBuffer.flip();
+        byte[] ret = new byte[readBuffer.limit()];
+        readBuffer.get(ret);
+        readBuffer.clear();
+        return ret;
     }
 
-    public void requestClose() {
-        closeRequested = true;
-    }
-
-    public boolean shouldClose() {
-        return closeRequested;
-    }
-
-    public void write() throws IOException {
+    public void writeToChannel() throws IOException {
         while (!writeBuffers.isEmpty()) {
             ByteBuffer head = writeBuffers.peekFirst();
             channel.write(head);
@@ -52,7 +45,7 @@ public class Connection {
         }
     }
 
-    public int read() throws IOException {
+    public int readFromChannel() throws IOException {
         int bytesRead = channel.read(readBuffer);
         if (readBuffer.position() == readBuffer.capacity()) {
             readBuffer.rewind();
@@ -63,7 +56,7 @@ public class Connection {
         return bytesRead;
     }
 
-    public ByteBuffer getReadBuffer() {
-        return readBuffer;
+    public boolean nothingToWrite() {
+        return writeBuffers.isEmpty();
     }
 }
