@@ -1,6 +1,6 @@
 package nmayorov.connection;
 
-public class ConnectionEvent {
+abstract public class ConnectionEvent {
     public enum What {DATA, CLOSE}
 
     public final What what;

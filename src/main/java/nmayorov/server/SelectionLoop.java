@@ -1,7 +1,9 @@
 package nmayorov.server;
 
+import nmayorov.connection.CloseConnection;
 import nmayorov.connection.Connection;
 import nmayorov.connection.ConnectionEvent;
+import nmayorov.connection.DataReceived;
 import nmayorov.connection.ModeChangeRequestQueue;
 import nmayorov.connection.NioSocketConnection;
 
@@ -111,7 +113,7 @@ class SelectionLoop implements Runnable {
         }
 
         try {
-            connectionEvents.put(new ConnectionEvent(ConnectionEvent.What.DATA, connection));
+            connectionEvents.put(new DataReceived(connection));
         } catch (InterruptedException e) {
             LOGGER.log(Level.WARNING, "Interrupted while putting DATA ConnectionEvent");
         }
@@ -139,7 +141,7 @@ class SelectionLoop implements Runnable {
         }
 
         try {
-            connectionEvents.put(new ConnectionEvent(ConnectionEvent.What.CLOSE, connection));
+            connectionEvents.put(new CloseConnection(connection));
         } catch (InterruptedException e) {
             LOGGER.log(Level.WARNING, "Interrupted while putting CLOSE ConnectionEvent");
         }

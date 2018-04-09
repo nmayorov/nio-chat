@@ -13,7 +13,7 @@ The class `Server` implements a server IO loop. It runs `ConnectionAcceptor` in 
 Chat server logic is implemented in `ChatLogic`. It uses `Message` objects to represent different kinds of messages. 
 The method `getBytes()` does serialization of message to bytes so it can be transferred over a socket. The 
 messages are read and constructed from byte buffers using `nextMessage(ByteBuffer buffer)` static method. Also there 
-is `Command` class which represen commands to the server passed from a user from a chat message. It is organized in a
+is `Command` class which represent commands to the server passed from a user from a chat message. It is organized in a
  similar manner as `Message` objects.
     
 `Client` is configurable with `InputSystem` and `DisplaySystem`, which in theory should allow to use `Client` in 

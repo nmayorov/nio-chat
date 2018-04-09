@@ -8,6 +8,7 @@ import nmayorov.command.Help;
 import nmayorov.command.List;
 import nmayorov.command.Name;
 import nmayorov.connection.Connection;
+import nmayorov.connection.DataReceived;
 import nmayorov.message.Disconnect;
 import nmayorov.message.Message;
 import nmayorov.message.MessageFactory;
@@ -131,7 +132,7 @@ class ConnectionProcessor implements Runnable {
 
             switch (connectionEvent.what) {
                 case DATA:
-                    handleData(connectionEvent.connection);
+                    handleData(connectionEvent.connection, ((DataReceived) connectionEvent).data);
                     break;
                 case CLOSE:
                     handleClose(connectionEvent.connection);
@@ -141,8 +142,8 @@ class ConnectionProcessor implements Runnable {
         }
     }
 
-    private void handleData(Connection connection) {
-        connection.messageBuffer.put(connection.getData());
+    private void handleData(Connection connection, byte[] data) {
+        connection.messageBuffer.put(data);
         byte[] messageBytes = connection.messageBuffer.getNextMessage();
         while (messageBytes != null) {
             Message message = MessageFactory.createFromBytes(messageBytes);
