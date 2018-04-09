@@ -33,7 +33,7 @@ class SelectionLoop implements Runnable {
 
         this.newConnections = newConnections;
         this.connectionEvents = connectionEvents;
-        this.modeChangeRequestQueue = new ModeChangeRequestQueue(this.selector);;
+        this.modeChangeRequestQueue = new ModeChangeRequestQueue(this.selector);
     }
 
     @Override
@@ -123,6 +123,7 @@ class SelectionLoop implements Runnable {
             connection.writeToChannel();
         } catch (IOException e) {
             close(connection);
+            return;
         }
 
         if (connection.shouldClose() && connection.nothingToWrite()) {
