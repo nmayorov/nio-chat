@@ -1,4 +1,4 @@
-package nmayorov.server;
+package nmayorov.chat;
 
 import nmayorov.command.Command;
 import nmayorov.command.CommandHandler;
@@ -8,7 +8,6 @@ import nmayorov.command.Help;
 import nmayorov.command.List;
 import nmayorov.command.Name;
 import nmayorov.connection.Connection;
-import nmayorov.message.ChatMessageBuffer;
 import nmayorov.message.Disconnect;
 import nmayorov.message.Message;
 import nmayorov.message.MessageFactory;
@@ -19,24 +18,33 @@ import nmayorov.message.NameRequest;
 import nmayorov.message.NameSent;
 import nmayorov.message.ServerText;
 import nmayorov.message.UserText;
+import nmayorov.connection.ConnectionEvent;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class ChatLogic implements ServerLogic {
-    private static final Logger LOGGER = Logger.getLogger(ChatLogic.class.getName());
+class ConnectionProcessor implements Runnable {
+    private static final Logger LOGGER = Logger.getLogger(ConnectionProcessor.class.getName());
     private static final int HISTORY_SIZE = 100;
 
-    private final ConcurrentHashMap<String, Connection> connections;
-    private final CircularFifoQueue<byte[]> messageHistory;
-    private final CommandHandlerFactory commands;
-    private final MessageHandlerFactory messageHandlers;
+    private final ArrayBlockingQueue<ConnectionEvent> connectionEvents;
+    private final ConcurrentHashMap<String, Connection> knownConnections;
 
-    public ChatLogic() {
-        connections = new ConcurrentHashMap<>();
+    private final MessageHandlerFactory messageHandlers;
+    private final CommandHandlerFactory commandHandlers;
+
+    private final CircularFifoQueue<byte[]> messageHistory;
+
+    ConnectionProcessor(ArrayBlockingQueue<ConnectionEvent> connectionEvents,
+                        ConcurrentHashMap<String, Connection> knownConnections) {
+        this.connectionEvents = connectionEvents;
+        this.knownConnections = knownConnections;
+
         messageHistory = new CircularFifoQueue<>(HISTORY_SIZE);
-        commands = registerCommands();
+        commandHandlers = registerCommands();
         messageHandlers = registerMessages();
     }
 
@@ -50,11 +58,11 @@ public class ChatLogic implements ServerLogic {
 
         commands.register(Command.Type.HELP, (command, connection) -> {
             String[] lines = {
-                "Available commands:",
-                Help.DESCRIPTION,
-                Name.DESCRIPTION,
-                List.DESCRIPTION,
-                Exit.DESCRIPTION
+                    "Available commands:",
+                    Help.DESCRIPTION,
+                    Name.DESCRIPTION,
+                    List.DESCRIPTION,
+                    Exit.DESCRIPTION
             };
             String message = String.join("\n", lines);
             connection.write(new ServerText(message).getBytes());
@@ -62,22 +70,22 @@ public class ChatLogic implements ServerLogic {
 
         commands.register(Command.Type.LIST, (command, connection) -> {
             StringBuilder sb;
-            sb = new StringBuilder(String.format("Currently %d users connected:", connections.size()));
-            for (String user : connections.keySet()) {
+            sb = new StringBuilder(String.format("Currently %d users connected:", knownConnections.size()));
+            for (Connection c : knownConnections.values()) {
                 sb.append('\n');
-                sb.append(user);
+                sb.append(c.name);
             }
             connection.write(new ServerText(sb.toString()).getBytes());
         });
 
         commands.register(
-            Command.Type.NAME,
-            (command, connection) -> renameConnection(((Name) command).getName(), connection)
+                Command.Type.NAME,
+                (command, connection) -> renameConnection(((Name) command).getName(), connection)
         );
 
         commands.register(
-            Command.Type.UNKNOWN_COMMAND,
-            (command, connection) -> connection.write(new ServerText("Unknown command.").getBytes())
+                Command.Type.UNKNOWN_COMMAND,
+                (command, connection) -> connection.write(new ServerText("Unknown command.").getBytes())
         );
 
         return commands;
@@ -89,7 +97,7 @@ public class ChatLogic implements ServerLogic {
         handlers.register(Message.Type.USER_TEXT, (message, connection) -> {
             Command command = Command.fromString(((UserText) message).getMessage());
             if (command != null) {
-                CommandHandler handler = commands.get(command.getType());
+                CommandHandler handler = commandHandlers.get(command.getType());
                 if (handler != null) {
                     handler.execute(command, connection);
                 }
@@ -111,24 +119,30 @@ public class ChatLogic implements ServerLogic {
     }
 
     @Override
-    public void onConnectionAccept(Connection connection) {
-        connection.messageBuffer = new ChatMessageBuffer();
-        connection.write(new ServerText("Enter your name.").getBytes());
-        connection.write(new NameRequest().getBytes());
-    }
+    public void run() {
+        ConnectionEvent connectionEvent;
+        while (true) {
+            try {
+                connectionEvent = connectionEvents.take();
+            } catch (InterruptedException e) {
+                LOGGER.log(Level.WARNING,"Interrupted while taking ConnectionEvent from queue", e);
+                continue;
+            }
 
-    @Override
-    public void onConnectionClose(Connection connection) {
-        if (connections.containsKey(connection.name)) {
-            connections.remove(connection.name);
-            broadcast(new ServerText(connection.name + " left the chat."));
-            LOGGER.info(String.format("User %s disconnected, %d left", connection.name, connections.size()));
+            switch (connectionEvent.what) {
+                case DATA:
+                    handleData(connectionEvent.connection);
+                    break;
+                case CLOSE:
+                    handleClose(connectionEvent.connection);
+                    break;
+            }
+
         }
     }
 
-    @Override
-    public void onDataReceive(Connection connection) {
-        connection.messageBuffer.put(connection.read());
+    private void handleData(Connection connection) {
+        connection.messageBuffer.put(connection.getData());
         byte[] messageBytes = connection.messageBuffer.getNextMessage();
         while (messageBytes != null) {
             Message message = MessageFactory.createFromBytes(messageBytes);
@@ -140,9 +154,18 @@ public class ChatLogic implements ServerLogic {
         }
     }
 
+    private void handleClose(Connection connection) {
+        if (connection.name != null && knownConnections.containsKey(connection.name)) {
+            knownConnections.remove(connection.name);
+            broadcast(new ServerText(connection.name + " left the chat."));
+            LOGGER.info(String.format("User %s disconnected, %d left", connection.name, knownConnections.size()));
+        }
+    }
+
+
     private void broadcast(Message message) {
         byte[] bytes = message.getBytes();
-        for (Connection connection : connections.values()) {
+        for (Connection connection : knownConnections.values()) {
             connection.write(bytes);
         }
     }
@@ -151,35 +174,35 @@ public class ChatLogic implements ServerLogic {
         if (name.isEmpty()) {
             connection.write(new ServerText("The name must be non-empty.").getBytes());
             connection.write(new NameRequest().getBytes());
-        } else if (connections.containsKey(name)) {
+        } else if (knownConnections.containsKey(name)) {
             connection.write(new ServerText("The name is already occupied.").getBytes());
             connection.write(new NameRequest().getBytes());
         } else {
             connection.write(new NameAccepted(name).getBytes());
             connection.name = name;
             connection.write(new ServerText("Welcome to the chat! Type \\help for help.").getBytes());
-            connections.put(name, connection);
+            knownConnections.put(name, connection);
             broadcast(new ServerText(name + " joined the chat!"));
             synchronized (messageHistory) {
                 for (byte[] message : messageHistory) {
                     connection.write(message);
                 }
             }
-            LOGGER.info(String.format("User %d is registered as %s", connections.size(), name));
+            LOGGER.info(String.format("User %d is registered as %s", knownConnections.size(), name));
         }
     }
 
     private void renameConnection(String newName, Connection connection) {
         if (newName.isEmpty()) {
             connection.write(new ServerText("The name must be non-empty.").getBytes());
-        } else if (connections.containsKey(newName)) {
+        } else if (knownConnections.containsKey(newName)) {
             connection.write(new ServerText("The name is already occupied.").getBytes());
         } else {
             connection.write(new NameAccepted(newName).getBytes());
             String oldName = connection.name;
-            connections.remove(connection.name);
+            knownConnections.remove(connection.name);
             connection.name = newName;
-            connections.put(connection.name, connection);
+            knownConnections.put(connection.name, connection);
             broadcast(new ServerText(String.format("%s is now %s.", oldName, newName)));
             LOGGER.info(String.format("User %s is renamed to %s", oldName, newName));
         }

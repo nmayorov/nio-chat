@@ -2,31 +2,54 @@ package nmayorov.connection;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class NioSocketConnection extends Connection {
+    private enum Mode {READ, WRITE}
+
     private static final int INITIAL_READ_BUFFER_CAPACITY = 128;
     private static final int RESIZE_FACTOR = 2;
 
     private final ConcurrentLinkedDeque<ByteBuffer> writeBuffers;
     private ByteBuffer readBuffer;
 
+    private final Selector selector;
     public final SocketChannel channel;
 
-    public NioSocketConnection(SocketChannel channel) {
+    private final ConcurrentLinkedDeque<ModeChangeRequest> modeChangeRequests;
+
+    private Mode mode;
+
+    public NioSocketConnection(Selector selector, SocketChannel channel,
+                               ConcurrentLinkedDeque<ModeChangeRequest> modeChangeRequests) throws IOException {
+        channel.configureBlocking(false);
+        channel.register(selector, SelectionKey.OP_READ, this);
+
+        this.selector = selector;
         this.channel = channel;
-        writeBuffers = new ConcurrentLinkedDeque<>();
-        readBuffer = ByteBuffer.allocate(INITIAL_READ_BUFFER_CAPACITY);
+        this.modeChangeRequests = modeChangeRequests;
+
+        this.writeBuffers = new ConcurrentLinkedDeque<>();
+        this.readBuffer = ByteBuffer.allocate(INITIAL_READ_BUFFER_CAPACITY);
+
+        this.mode = Mode.READ;
     }
 
     @Override
     public void write(byte[] src) {
         writeBuffers.add(ByteBuffer.wrap(src));
+        if (this.mode == Mode.READ) {
+            this.mode = Mode.WRITE;
+            modeChangeRequests.add(new ModeChangeRequest(this, SelectionKey.OP_WRITE));
+            this.selector.wakeup();
+        }
     }
 
     @Override
-    public byte[] read() {
+    public byte[] getData() {
         readBuffer.flip();
         byte[] ret = new byte[readBuffer.limit()];
         readBuffer.get(ret);
@@ -36,12 +59,16 @@ public class NioSocketConnection extends Connection {
 
     public void writeToChannel() throws IOException {
         while (!writeBuffers.isEmpty()) {
-            ByteBuffer head = writeBuffers.peekFirst();
+            ByteBuffer head = writeBuffers.peek();
             channel.write(head);
             if (head.hasRemaining()) {
                 break;
             }
-            writeBuffers.removeFirst();
+            writeBuffers.remove();
+        }
+        if (writeBuffers.isEmpty()) {
+            this.mode = Mode.READ;
+            modeChangeRequests.add(new ModeChangeRequest(this, SelectionKey.OP_READ));
         }
     }
 

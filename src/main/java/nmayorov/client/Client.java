@@ -1,6 +1,7 @@
 package nmayorov.client;
 
 import nmayorov.connection.NioSocketConnection;
+import nmayorov.connection.ModeChangeRequest;
 import nmayorov.message.ChatMessageBuffer;
 import nmayorov.message.MessageFactory;
 import nmayorov.message.MessageHandler;
@@ -17,10 +18,9 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class Client implements Runnable {
-    private static final int PAUSE_BETWEEN_IO_CYCLES_MS = 100;
-
     private final DisplaySystem displaySystem;
     private final InputSystem inputSystem;
 
@@ -33,23 +33,14 @@ public class Client implements Runnable {
     private volatile boolean run;
 
     private final MessageHandlerFactory messageHandlers;
+    private final ConcurrentLinkedDeque<ModeChangeRequest> modeChangeRequests;
 
     class InputLoop implements Runnable {
-        private final Client client;
-        InputLoop(Client client) {
-            this.client = client;
-        }
-
         @Override
         public void run() {
             while (acceptInput) {
                 String input = inputSystem.readChatInput();
-                synchronized (connection) {
-                    connection.write(new UserText(connection.name, input).getBytes());
-                }
-                synchronized (client) {
-                    client.notify();
-                }
+                connection.write(new UserText(connection.name, input).getBytes());
             }
         }
     }
@@ -75,8 +66,9 @@ public class Client implements Runnable {
     public Client(InputSystem inputSystem, DisplaySystem displaySystem) {
         this.inputSystem = inputSystem;
         this.displaySystem = displaySystem;
-        this.inputThread = new Thread(new InputLoop(this));
+        this.inputThread = new Thread(new InputLoop());
         this.messageHandlers = registerMessages();
+        this.modeChangeRequests = new ConcurrentLinkedDeque<>();
     }
 
     private MessageHandlerFactory registerMessages() {
@@ -88,10 +80,7 @@ public class Client implements Runnable {
         });
 
         messageHandlers.register(Message.Type.NAME_ACCEPTED, (message, connection) -> {
-            String name = ((NameAccepted) message).getName();
-            synchronized (connection) {
-                connection.name = name;
-            }
+            connection.name = ((NameAccepted) message).getName();;
             startToAcceptInput();
         });
 
@@ -101,33 +90,23 @@ public class Client implements Runnable {
     }
 
     public void connect(InetSocketAddress address) throws IOException {
-        connection = new NioSocketConnection(SocketChannel.open());
-        connection.messageBuffer = new ChatMessageBuffer();
-        connection.channel.connect(address);
+        SocketChannel socketChannel = SocketChannel.open();
+        socketChannel.connect(address);
 
         selector = Selector.open();
-        connection.channel.configureBlocking(false);
-        connection.channel.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+        connection = new NioSocketConnection(selector, socketChannel, modeChangeRequests);
+        connection.messageBuffer = new ChatMessageBuffer();
     }
 
     public void run() {
         run = true;
         while (run) {
-            try {
-                synchronized (this) {
-                    wait(PAUSE_BETWEEN_IO_CYCLES_MS);
-                }
-            } catch (InterruptedException e) {
-            }
+            processChangeRequests();
 
-            int selected = 0;
             try {
-                selected = selector.select();
+                selector.select();
             } catch (IOException e) {
                 run = false;
-            }
-
-            if (selected == 0) {
                 continue;
             }
 
@@ -136,7 +115,12 @@ public class Client implements Runnable {
             while (iterator.hasNext()) {
                 SelectionKey key = iterator.next();
                 iterator.remove();
-                if (key.isValid() && key.isReadable()) {
+
+                if (!key.isValid()) {
+                    continue;
+                }
+
+                if (key.isReadable()) {
                     try {
                         connection.readFromChannel();
                     } catch (IOException e) {
@@ -144,7 +128,7 @@ public class Client implements Runnable {
                         break;
                     }
 
-                    connection.messageBuffer.put(connection.read());
+                    connection.messageBuffer.put(connection.getData());
                     byte[] messageData = connection.messageBuffer.getNextMessage();
                     while (messageData != null) {
                         Message message = MessageFactory.createFromBytes(messageData);
@@ -155,9 +139,7 @@ public class Client implements Runnable {
                         }
                         messageData = connection.messageBuffer.getNextMessage();
                     }
-                }
-
-                if (key.isValid() && key.isWritable()) {
+                } else if (key.isWritable()) {
                     try {
                         connection.writeToChannel();
                     } catch (IOException e) {
@@ -170,6 +152,15 @@ public class Client implements Runnable {
         }
         displaySystem.displayText("Disconnected from server. Input anything to exit.");
         stopToAcceptInput();
+    }
+
+    private void processChangeRequests() {
+        ModeChangeRequest request = modeChangeRequests.poll();
+        while (request != null) {
+            SelectionKey key = request.connection.channel.keyFor(this.selector);
+            key.interestOps(request.ops);
+            request = modeChangeRequests.poll();
+        }
     }
 
     public void stop() {
