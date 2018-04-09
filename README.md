@@ -2,19 +2,18 @@ Chat server and client in Java using non-blocking sockets.
 
 Code organization
 =================
-Server-client connection is implementing using non-blocking TCP sockets from `java.nio`: `ServerSocketChannel` and `SocketChannel`.
-It allows the server to handle many connections in a single thread, which in theory should be an efficient 
-approach. The class `Connection` implements IO logic for non-blocking sockets.
+Network layer is defined through `Server`, `Connection` and `ConnectionEvent`  classes. The `Server` is assumed to 
+put new connections and events related to connections to queues, which will be read and processed by another 
+threads (server logic classes). The provided implementation relies on `java.nio`. 
 
-The class `Server` implements a server IO loop. It runs `ConnectionAcceptor` in a single thread and 
-`ConnectionProcessor` in several threads (configurable and equal to the number of CPU cores by default). Server logic
- is injected by an object implementing `ServerLogic` interface. 
+The chat logic is implemented in `ConnectionAcceptor` and `ConnectionProcessor` classes which process the aforementioned 
+queues. The class `Chat` is responsible for creating the queues and binding them to server and processor classes. 
 
-Chat server logic is implemented in `ChatLogic`. It uses `Message` objects to represent different kinds of messages. 
-The method `getBytes()` does serialization of message to bytes so it can be transferred over a socket. The 
-messages are read and constructed from byte buffers using `nextMessage(ByteBuffer buffer)` static method. Also there 
-is `Command` class which represent commands to the server passed from a user from a chat message. It is organized in a
- similar manner as `Message` objects.
+Chat logic is implementing using `Message` and `Command` objects. `Message` is used to represent different kinds of 
+messages. The method `getBytes()` does serialization of message to bytes so it can be written to a connection. The 
+messages are read and constructed from bytes using `ChatMessageBuffer` and `MessageFactory` classes. The class 
+`Command` represents commands to the server passed from a user from a chat message. It is organized in a similar 
+manner as `Message` objects.
     
 `Client` is configurable with `InputSystem` and `DisplaySystem`, which in theory should allow to use `Client` in 
 different GUI settings or use it for a chat bot.
