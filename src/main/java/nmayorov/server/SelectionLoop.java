@@ -2,7 +2,7 @@ package nmayorov.server;
 
 import nmayorov.connection.Connection;
 import nmayorov.connection.ConnectionEvent;
-import nmayorov.connection.ModeChangeRequest;
+import nmayorov.connection.ModeChangeRequestQueue;
 import nmayorov.connection.NioSocketConnection;
 
 import java.io.IOException;
@@ -12,7 +12,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -23,7 +22,7 @@ class SelectionLoop implements Runnable {
 
     private final ArrayBlockingQueue<Connection> newConnections;
     private final ArrayBlockingQueue<ConnectionEvent> connectionEvents;
-    private final ConcurrentLinkedDeque<ModeChangeRequest> modeChangeRequests;
+    private final ModeChangeRequestQueue modeChangeRequestQueue;
 
     SelectionLoop(ServerSocketChannel serverSocketChannel,
                   ArrayBlockingQueue<Connection> newConnections,
@@ -34,13 +33,13 @@ class SelectionLoop implements Runnable {
 
         this.newConnections = newConnections;
         this.connectionEvents = connectionEvents;
-        this.modeChangeRequests = new ConcurrentLinkedDeque<>();
+        this.modeChangeRequestQueue = new ModeChangeRequestQueue(this.selector);;
     }
 
     @Override
     public void run() {
         while (true) {
-            processChangeRequests();
+            modeChangeRequestQueue.process();
 
             try {
                 selector.select();
@@ -67,17 +66,6 @@ class SelectionLoop implements Runnable {
         }
     }
 
-    private void processChangeRequests() {
-        ModeChangeRequest request = modeChangeRequests.poll();
-        while (request != null) {
-            SelectionKey key = request.connection.channel.keyFor(this.selector);
-            if (key != null && key.isValid()) {
-                key.interestOps(request.ops);
-            }
-            request = modeChangeRequests.poll();
-        }
-    }
-
     private void accept(SelectionKey key) {
         ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
 
@@ -94,7 +82,7 @@ class SelectionLoop implements Runnable {
 
         NioSocketConnection connection;
         try {
-            connection = new NioSocketConnection(selector, socketChannel, modeChangeRequests);
+            connection = new NioSocketConnection(selector, socketChannel, modeChangeRequestQueue);
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Error creating connection from SocketChannel", e);
             return;

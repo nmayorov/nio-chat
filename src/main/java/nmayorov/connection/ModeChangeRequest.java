@@ -1,7 +1,5 @@
 package nmayorov.connection;
 
-import nmayorov.connection.NioSocketConnection;
-
 public class ModeChangeRequest {
     public NioSocketConnection connection;
     public int ops;

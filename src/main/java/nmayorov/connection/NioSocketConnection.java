@@ -19,18 +19,18 @@ public class NioSocketConnection extends Connection {
     private final Selector selector;
     public final SocketChannel channel;
 
-    private final ConcurrentLinkedDeque<ModeChangeRequest> modeChangeRequests;
+    private final ModeChangeRequestQueue modeChangeRequestQueue;
 
     private Mode mode;
 
     public NioSocketConnection(Selector selector, SocketChannel channel,
-                               ConcurrentLinkedDeque<ModeChangeRequest> modeChangeRequests) throws IOException {
+                               ModeChangeRequestQueue modeChangeRequestQueue) throws IOException {
         channel.configureBlocking(false);
         channel.register(selector, SelectionKey.OP_READ, this);
 
         this.selector = selector;
         this.channel = channel;
-        this.modeChangeRequests = modeChangeRequests;
+        this.modeChangeRequestQueue = modeChangeRequestQueue;
 
         this.writeBuffers = new ConcurrentLinkedDeque<>();
         this.readBuffer = ByteBuffer.allocate(INITIAL_READ_BUFFER_CAPACITY);
@@ -43,7 +43,7 @@ public class NioSocketConnection extends Connection {
         writeBuffers.add(ByteBuffer.wrap(src));
         if (this.mode == Mode.READ) {
             this.mode = Mode.WRITE;
-            modeChangeRequests.add(new ModeChangeRequest(this, SelectionKey.OP_WRITE));
+            modeChangeRequestQueue.add(new ModeChangeRequest(this, SelectionKey.OP_WRITE));
             this.selector.wakeup();
         }
     }
@@ -68,7 +68,7 @@ public class NioSocketConnection extends Connection {
         }
         if (writeBuffers.isEmpty()) {
             this.mode = Mode.READ;
-            modeChangeRequests.add(new ModeChangeRequest(this, SelectionKey.OP_READ));
+            modeChangeRequestQueue.add(new ModeChangeRequest(this, SelectionKey.OP_READ));
         }
     }
 

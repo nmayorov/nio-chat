@@ -1,7 +1,7 @@
 package nmayorov.client;
 
+import nmayorov.connection.ModeChangeRequestQueue;
 import nmayorov.connection.NioSocketConnection;
-import nmayorov.connection.ModeChangeRequest;
 import nmayorov.message.ChatMessageBuffer;
 import nmayorov.message.MessageFactory;
 import nmayorov.message.MessageHandler;
@@ -18,7 +18,6 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class Client implements Runnable {
     private final DisplaySystem displaySystem;
@@ -33,7 +32,7 @@ public class Client implements Runnable {
     private volatile boolean run;
 
     private final MessageHandlerFactory messageHandlers;
-    private final ConcurrentLinkedDeque<ModeChangeRequest> modeChangeRequests;
+    private ModeChangeRequestQueue modeChangeRequestQueue;
 
     class InputLoop implements Runnable {
         @Override
@@ -68,7 +67,6 @@ public class Client implements Runnable {
         this.displaySystem = displaySystem;
         this.inputThread = new Thread(new InputLoop());
         this.messageHandlers = registerMessages();
-        this.modeChangeRequests = new ConcurrentLinkedDeque<>();
     }
 
     private MessageHandlerFactory registerMessages() {
@@ -94,14 +92,16 @@ public class Client implements Runnable {
         socketChannel.connect(address);
 
         selector = Selector.open();
-        connection = new NioSocketConnection(selector, socketChannel, modeChangeRequests);
+        this.modeChangeRequestQueue = new ModeChangeRequestQueue(selector);
+
+        connection = new NioSocketConnection(selector, socketChannel, modeChangeRequestQueue);
         connection.messageBuffer = new ChatMessageBuffer();
     }
 
     public void run() {
         run = true;
         while (run) {
-            processChangeRequests();
+            modeChangeRequestQueue.process();
 
             try {
                 selector.select();
@@ -152,15 +152,6 @@ public class Client implements Runnable {
         }
         displaySystem.displayText("Disconnected from server. Input anything to exit.");
         stopToAcceptInput();
-    }
-
-    private void processChangeRequests() {
-        ModeChangeRequest request = modeChangeRequests.poll();
-        while (request != null) {
-            SelectionKey key = request.connection.channel.keyFor(this.selector);
-            key.interestOps(request.ops);
-            request = modeChangeRequests.poll();
-        }
     }
 
     public void stop() {
